@@ -1,0 +1,26 @@
+{
+  "expo": {
+    "name": "ArabGram",
+    "slug": "arabgram",
+    "version": "1.0.0",
+    "orientation": "default",
+    "icon": "./assets/icon.png",
+    "scheme": "arabgram",
+    "userInterfaceStyle": "automatic",
+    "backgroundColor": "#FBF7EF",
+    "splash": { "image": "./assets/splash-icon.png", "resizeMode": "contain", "backgroundColor": "#0E4D45" },
+    "ios": { "supportsTablet": true, "bundleIdentifier": "com.yourcompany.arabgram" },
+    "android": {
+      "package": "com.yourcompany.arabgram",
+      "adaptiveIcon": {
+        "backgroundColor": "#0E4D45",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      }
+    },
+    "web": { "favicon": "./assets/favicon.png", "output": "single", "bundler": "metro", "name": "ArabGram", "shortName": "ArabGram", "themeColor": "#0E4D45", "backgroundColor": "#FBF7EF", "lang": "fr" },
+    "plugins": ["expo-router", "expo-font"],
+    "experiments": { "typedRoutes": false, "baseUrl": "/arabgram" }
+  }
+}

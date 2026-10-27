@@ -1,0 +1,10 @@
+{
+  "name": "ArabGram — apprendre à lire l’arabe",
+  "short_name": "ArabGram",
+  "description": "11 unités Arabic-first, tashkīl, révisions Leitner et course de lecture « سباق المرشد ». Fonctionne hors ligne.",
+  "lang": "fr",
+  "theme_color": "#0E4D45",
+  "background_color": "#FBF7EF",
+  "dark": false,
+  "categories": ["education"]
+}
