@@ -29,7 +29,7 @@ export default function LessonScreen() {
   if (!playable(lesson))
     return (
       <Screen header={<BackHeader title={lesson.title[gloss]} subtitle={`${t('unit')} ${unit.id}`} />}>
-        <Banner kind="warning" icon="alert-circle" title="Placeholder / non licencié — à remplacer" text={lic.detail[gloss]} />
+        <Banner kind="warning" icon="alert-circle" title={lic.short[lang]} text={lic.detail[gloss]} />
         <Card>
           <T v="h3">{pick({ fr: 'Comment remplir cet emplacement', ar: 'كَيْفَ تَمْلَأُ هٰذَا المَكَانَ', en: 'How to fill this slot' })}</T>
           <T v="body" muted>

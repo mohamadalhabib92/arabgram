@@ -4,7 +4,9 @@ import { router } from 'expo-router';
 import { useTheme, alpha } from '@/kit/theme';
 import { Header, IconButton, Ionicons, T, useToast } from '@/kit/ui';
 import { LICENSES, type LicenseId } from '@/data/licenses';
+import { formatDigits } from '@/kit/format';
 import { arabicFamily } from '@/lib/fonts';
+import { TYPE } from '@/theme';
 import { hasArabicVoice, speakArabic } from '@/lib/speech';
 import { useI18n } from '@/lib/i18n';
 import { store } from '@/state';
@@ -30,15 +32,20 @@ export function AR({
   const t = useTheme();
   const arScale = store.useSelect((s) => s.settings.arScale);
   const fs = size * arScale * t.fontScale;
+  const pad = Math.round(fs * TYPE.harakatPad);
+  const body = typeof children === 'string' || typeof children === 'number' ? formatDigits(children, t.digits) : children;
   return (
     <Text
+      accessibilityLanguage="ar"
       // @ts-ignore — lang est transmis au DOM sur le web (lecteurs d’écran, césure)
       lang="ar"
       style={[
         {
           fontFamily: arabicFamily(system),
           fontSize: fs,
-          lineHeight: Math.round(fs * 1.85),
+          lineHeight: Math.round(fs * TYPE.arabicLineHeight),
+          paddingTop: pad,
+          paddingBottom: pad,
           writingDirection: 'rtl',
           textAlign: center ? 'center' : 'right',
           color: color ?? t.text,
@@ -47,7 +54,7 @@ export function AR({
         style,
       ]}
     >
-      {children}
+      {body}
     </Text>
   );
 }
@@ -106,10 +113,11 @@ export function LicenseTag({ id, compact }: { id: LicenseId; compact?: boolean }
       accessibilityRole="link"
       accessibilityLabel={lic.short[lang]}
       onPress={() => router.push('/sources')}
-      style={{ flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', paddingHorizontal: 10, minHeight: compact ? 28 : 32, borderRadius: 999, backgroundColor: alpha(color, 0.12) }}
+      style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6, alignSelf: 'flex-start', paddingHorizontal: compact ? 8 : 10, paddingVertical: 4, minHeight: TYPE.minTarget, borderRadius: 999, backgroundColor: alpha(color, 0.12) }}
     >
       <Ionicons name={icon} size={14} color={color} />
       <Text style={{ color, fontSize: 12 * t.fontScale, fontWeight: '700' }}>{lic.short[lang]}</Text>
+      <Text style={{ color: t.warning, fontSize: 11 * t.fontScale, fontWeight: '700' }}>à valider</Text>
     </Pressable>
   );
 }
@@ -146,9 +154,15 @@ export function useArabicVoice(): boolean | null {
 }
 
 export function Pill({ children, color }: { children: React.ReactNode; color: string }) {
+  const t = useTheme();
+  const body = Array.isArray(children)
+    ? children.map((n) => (typeof n === 'string' || typeof n === 'number' ? formatDigits(n, t.digits) : n))
+    : typeof children === 'string' || typeof children === 'number'
+      ? formatDigits(children, t.digits)
+      : children;
   return (
-    <View style={{ paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, backgroundColor: alpha(color, 0.14) }}>
-      <Text style={{ color, fontWeight: '700', fontSize: 12 }}>{children}</Text>
+    <View style={{ minHeight: 28, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, backgroundColor: alpha(color, 0.14), justifyContent: 'center' }}>
+      <Text style={{ color, fontWeight: '700', fontSize: 12 }}>{body}</Text>
     </View>
   );
 }

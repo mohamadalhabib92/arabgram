@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { Platform } from 'react-native';
+import { Platform, Text } from 'react-native';
 import { router } from 'expo-router';
 import { useTheme } from '@/kit/theme';
 import { Banner, Button, Card, Header, ListItem, Row, Screen, Section, Segmented, Sheet, T, ToggleRow, useToast } from '@/kit/ui';
 import { AR, useArabicVoice } from '@/components/common';
 import { exportText } from '@/kit/files';
 import { useI18n } from '@/lib/i18n';
+import { showTutorScreen } from '@/config';
 import { DEFAULT_SETTINGS, setSettings, store, type Gloss, type Settings as S, type UiLang } from '@/state';
 
 export default function SettingsTab() {
@@ -70,6 +71,16 @@ export default function SettingsTab() {
           <ToggleRow label={pick({ fr: 'Contraste élevé', ar: 'تَبَايُنٌ عَالٍ', en: 'High contrast' })} value={st.contrast} onChange={(contrast) => setSettings({ contrast })} />
           <T v="label" muted>{pick({ fr: 'Taille du texte', ar: 'حَجْمُ النَّصّ', en: 'Text size' })}</T>
           <Segmented options={scaleOpts} value={near(st.textScale, scaleOpts)} onChange={(k) => setSettings({ textScale: +k })} />
+          <T v="label" muted>{pick({ fr: 'Chiffres', ar: 'الأَرْقَام', en: 'Digits' })}</T>
+          <Segmented<'latn' | 'arab'>
+            options={[
+              { key: 'latn', label: pick({ fr: 'Latins', ar: 'لاتينية', en: 'Western' }) },
+              { key: 'arab', label: pick({ fr: 'Indo-arabes', ar: 'هندية', en: 'Eastern' }) },
+            ]}
+            value={st.digits}
+            onChange={(digits) => setSettings({ digits })}
+          />
+          <Text style={{ color: p.textMuted, fontSize: 13 }}>{st.digits === 'arab' ? '١٢٣' : '123'}</Text>
           <T v="label" muted>{pick({ fr: 'Taille de l’arabe', ar: 'حَجْمُ الخَطِّ العَرَبِيّ', en: 'Arabic size' })}</T>
           <Segmented options={arOpts} value={near(st.arScale, arOpts)} onChange={(k) => setSettings({ arScale: +k })} />
           <AR size={26} center>بِسْمِ اللّٰهِ — السَّلَامُ عَلَيْكُمْ</AR>
@@ -118,7 +129,9 @@ export default function SettingsTab() {
         <Card>
           <ListItem icon="text-outline" title={pick({ fr: 'Test de tashkīl et rendu', ar: 'اِخْتِبَارُ التَّشْكِيل', en: 'Tashkīl & rendering test' })} onPress={() => router.push('/tashkil-test')} />
           <ListItem icon="library-outline" title={pick({ fr: 'Sources et licences', ar: 'المَصَادِرُ وَالتَّرَاخِيص', en: 'Sources & licences' })} onPress={() => router.push('/sources')} />
-          <ListItem icon="sparkles-outline" iconColor={p.accent} title={pick({ fr: 'Tuteur IA (phase 2) et configuration', ar: 'المُعَلِّمُ الذَّكِيّ (المَرْحَلَةُ ٢)', en: 'AI tutor (phase 2) & configuration' })} onPress={() => router.push('/tutor')} />
+          {showTutorScreen() ? (
+            <ListItem icon="sparkles-outline" iconColor={p.accent} title={pick({ fr: 'Tuteur IA (phase 2) et configuration', ar: 'المُعَلِّمُ الذَّكِيّ (المَرْحَلَةُ ٢)', en: 'AI tutor (phase 2) & configuration' })} onPress={() => router.push('/tutor')} />
+          ) : null}
           <ListItem
             icon="download-outline"
             title={pick({ fr: 'Exporter ma progression (JSON)', ar: 'تَصْدِيرُ التَّقَدُّم', en: 'Export my progress (JSON)' })}

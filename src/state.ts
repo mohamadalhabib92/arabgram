@@ -11,7 +11,9 @@ export type Settings = {
   theme: 'system' | 'light' | 'dark';
   contrast: boolean;
   textScale: number; // 0.9 → 1.5 (interface)
-  arScale: number; // 0.9 → 1.8 (texte arabe)
+  arScale: number; // 0.9 → 1.8 (texte arabe), défaut 1,4× le latin
+  /** Chiffres d’interface : latins ou indo-arabes. N’altère pas les clés stockées. */
+  digits: 'latn' | 'arab';
   showTranslit: boolean;
   audio: boolean;
   reduceMotion: boolean;
@@ -42,7 +44,8 @@ export const DEFAULT_SETTINGS: Settings = {
   theme: 'system',
   contrast: false,
   textScale: 1,
-  arScale: 1.2,
+  arScale: 1.4,
+  digits: 'latn',
   showTranslit: true,
   audio: true,
   reduceMotion: false,
@@ -63,7 +66,34 @@ const initial = (): State => ({
   tashkilBest: null,
 });
 
-export const store = createPersistedStore<State>('arabgram', initial, 1);
+function isRecord(v: unknown): v is Record<string, unknown> {
+  return !!v && typeof v === 'object' && !Array.isArray(v);
+}
+
+/**
+ * Migration additive sur la clé existante `arabgram@v1` : les nouveaux champs
+ * (chiffres, etc.) prennent leur défaut, rien de déjà sauvé n’est effacé.
+ */
+export function restoreState(saved: unknown, base: State): State {
+  if (!isRecord(saved)) return base;
+  const s = saved as Partial<State>;
+  const settings = isRecord(s.settings) ? { ...base.settings, ...(s.settings as Partial<Settings>) } : base.settings;
+  const pacerSaved = isRecord(s.pacer) ? s.pacer : null;
+  return {
+    ...base,
+    ...s,
+    settings,
+    srs: isRecord(s.srs) ? (s.srs as State['srs']) : base.srs,
+    lessons: isRecord(s.lessons) ? (s.lessons as State['lessons']) : base.lessons,
+    days: isRecord(s.days) ? (s.days as State['days']) : base.days,
+    pacer: {
+      target: typeof pacerSaved?.target === 'number' ? pacerSaved.target : base.pacer.target,
+      sessions: Array.isArray(pacerSaved?.sessions) ? (pacerSaved.sessions as State['pacer']['sessions']) : base.pacer.sessions,
+    },
+  };
+}
+
+export const store = createPersistedStore<State>('arabgram', initial, 1, restoreState);
 
 /* ---------- Réglages ---------- */
 export function setSettings(patch: Partial<Settings>) {

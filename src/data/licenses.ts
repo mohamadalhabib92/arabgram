@@ -9,6 +9,8 @@ export type LicenseInfo = {
   id: LicenseId;
   short: { fr: string; ar: string; en: string };
   kind: 'owned' | 'public-domain' | 'placeholder';
+  /** Rien n’est présenté comme juridiquement ou linguistiquement confirmé. */
+  review: 'à valider';
   detail: { fr: string; en: string };
   holder: string;
 };
@@ -17,40 +19,44 @@ export const LICENSES: Record<LicenseId, LicenseInfo> = {
   'ag-original': {
     id: 'ag-original',
     kind: 'owned',
+    review: 'à valider',
     short: { fr: 'Contenu original ArabGram', ar: 'مُحْتَوًى أَصْلِيّ', en: 'ArabGram original content' },
     detail: {
-      fr: 'Vocabulaire, phrases d’exemple, translittérations, traductions et exercices rédigés spécialement pour ArabGram (2026). Propriété du titulaire de l’app ; licence de diffusion à confirmer par le propriétaire (proposition : CC BY-SA 4.0). Les lettres et règles de l’alphabet arabe sont des faits non protégés.',
-      en: 'Vocabulary, example sentences, transliterations, translations and exercises written specifically for ArabGram (2026). Owned by the app owner; distribution licence to be confirmed by the owner (suggested: CC BY-SA 4.0). Letters and rules of the Arabic script are uncopyrightable facts.',
+      fr: 'Vocabulaire, phrases d’exemple, translittérations, traductions et exercices rédigés pour ArabGram (2026). Licence de diffusion : à valider par Mohamed (proposition, non confirmée : CC BY-SA 4.0). Les descriptions de sons et les règles sont des approximations pédagogiques — à valider, pas un avis linguistique.',
+      en: 'Vocabulary, example sentences, transliterations, translations and exercises written for ArabGram (2026). Distribution licence: to be confirmed by Mohamed (unconfirmed suggestion: CC BY-SA 4.0). Sound descriptions and rules are teaching approximations — not a validated linguistic opinion.',
     },
     holder: 'Titulaire de l’app ArabGram',
   },
   'pd-proverbs': {
     id: 'pd-proverbs',
     kind: 'public-domain',
-    short: { fr: 'Domaine public — proverbes traditionnels', ar: 'مِلْكٌ عَامّ — أَمْثَال', en: 'Public domain — traditional proverbs' },
+    review: 'à valider',
+    short: { fr: 'Proverbes — statut à valider', ar: 'أَمْثَال — بِحَاجَةٍ إِلَى تَأْكِيد', en: 'Proverbs — status to confirm' },
     detail: {
-      fr: 'Proverbes et dictons arabes de tradition orale, sans auteur identifiable : domaine public. Vocalisation, translittération et traduction : contenu original ArabGram.',
-      en: 'Traditional Arabic proverbs and sayings with no identifiable author: public domain. Vocalisation, transliteration and translation: ArabGram original content.',
+      fr: 'Proverbes de tradition orale, sans auteur identifié dans l’app. Statut de domaine public : à valider. Vocalisation, translittération et traduction : contenu original ArabGram — à valider. Aucun manuel n’est repris.',
+      en: 'Oral-tradition proverbs, no author identified in the app. Public-domain status: to be confirmed. Vocalisation, transliteration and translation: ArabGram original content — to be confirmed. No textbook is reused.',
     },
-    holder: 'Domaine public',
+    holder: 'à valider',
   },
   'pd-classical': {
     id: 'pd-classical',
     kind: 'public-domain',
-    short: { fr: 'Domaine public — poésie classique', ar: 'مِلْكٌ عَامّ — شِعْر قَدِيم', en: 'Public domain — classical poetry' },
+    review: 'à valider',
+    short: { fr: 'Poésie classique — attribution à valider', ar: 'شِعْر قَدِيم — النِّسْبَةُ غَيْرُ مُؤَكَّدَة', en: 'Classical verse — attribution to confirm' },
     detail: {
-      fr: 'Vers d’al-Mutanabbī (mort en 965) et d’Imruʾ al-Qays (VIe siècle) : œuvres du domaine public. Vocalisation usuelle ; translittération et traduction : contenu original ArabGram (aucune traduction publiée n’est reprise).',
-      en: 'Verses by al-Mutanabbī (d. 965) and Imruʾ al-Qays (6th c.): public-domain works. Standard vocalisation; transliteration and translation: ArabGram original content (no published translation reused).',
+      fr: 'Vers présentés comme ceux d’al-Mutanabbī (m. 965) et d’Imruʾ al-Qays (VIe s.). Attribution, vocalisation et statut de domaine public : à valider. Traductions : originales ArabGram — à valider. Aucune traduction publiée n’est reprise.',
+      en: 'Verses presented as al-Mutanabbī (d. 965) and Imruʾ al-Qays (6th c.). Attribution, vocalisation and public-domain status: to be confirmed. Translations: original ArabGram — to be confirmed. No published translation is reused.',
     },
-    holder: 'Domaine public',
+    holder: 'à valider',
   },
   placeholder: {
     id: 'placeholder',
     kind: 'placeholder',
-    short: { fr: 'Placeholder / non licencié — à remplacer', ar: 'مُحْتَوًى مُؤَقَّت', en: 'Placeholder / unlicensed — to replace' },
+    review: 'à valider',
+    short: { fr: 'Contenu à fournir', ar: 'مُحْتَوًى مَطْلُوب', en: 'Content to be provided' },
     detail: {
-      fr: 'Emplacement réservé au corpus de lecture longue (manuel, textes du propriétaire ou corpus open-licence). Aucun contenu protégé n’est inclus. À remplacer avant publication.',
-      en: 'Slot reserved for the long-reading corpus (textbook, owner texts or open-licensed corpus). No copyrighted content included. Replace before publishing.',
+      fr: 'Contenu à fournir. Emplacement u11l3 vide : aucun texte protégé n’est inclus. À remplir par Mohamed avec un texte possédé, du domaine public confirmé, ou sous licence ouverte.',
+      en: 'Content to be provided. Lesson u11l3 is empty: no copyrighted text is included. Mohamed still has to supply a text he owns, a confirmed public-domain text, or an open-licensed text.',
     },
     holder: '—',
   },

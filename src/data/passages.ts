@@ -38,7 +38,7 @@ export const PASSAGES: Passage[] = [
     title: { ar: 'أَمْثَال', fr: 'Proverbes', en: 'Proverbs' },
     level: 2,
     license: 'pd-proverbs',
-    gloss: { fr: 'Le savoir est lumière. Le temps, c’est de l’or. Qui persévère trouve.', en: 'Knowledge is light. Time is gold. Whoever strives, finds.' },
+    gloss: { fr: 'Le savoir est lumière. Le temps, c’est de l’or. Qui persévère trouve. Traduction et statut : à valider.', en: 'Knowledge is light. Time is gold. Whoever strives, finds. Translation and status: to be confirmed.' },
     words: w('العِلْمُ=al-ʿilmu|نُورٌ=nūrun|الوَقْتُ=al-waqtu|مِنْ=min|ذَهَبٍ=dhahabin|مَنْ=man|جَدَّ=jadda|وَجَدَ=wajada'),
   },
   {
@@ -46,7 +46,7 @@ export const PASSAGES: Passage[] = [
     title: { ar: 'بَيْتُ المُتَنَبِّي', fr: 'Le vers d’al-Mutanabbī', en: 'Al-Mutanabbī’s verse' },
     level: 3,
     license: 'pd-classical',
-    gloss: { fr: 'Les chevaux, la nuit et le désert me connaissent, et l’épée, la lance, le papier et le calame.', en: 'The horses, the night and the desert know me, and the sword, the spear, the paper and the pen.' },
+    gloss: { fr: 'Les chevaux, la nuit et le désert me connaissent, et l’épée, la lance, le papier et le calame. Attribution à al-Mutanabbī et traduction : à valider.', en: 'The horses, the night and the desert know me, and the sword, the spear, the paper and the pen. Attribution to al-Mutanabbī and translation: to be confirmed.' },
     words: w('الخَيْلُ=al-khaylu|وَاللَّيْلُ=wa-l-laylu|وَالبَيْدَاءُ=wa-l-baydāʾu|تَعْرِفُنِي=taʿrifunī|وَالسَّيْفُ=wa-s-sayfu|وَالرُّمْحُ=wa-r-rumḥu|وَالقِرْطَاسُ=wa-l-qirṭāsu|وَالقَلَمُ=wa-l-qalamu'),
   },
 ];

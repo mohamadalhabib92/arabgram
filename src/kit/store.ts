@@ -15,7 +15,12 @@ export type PersistedStore<T> = {
   key: string;
 };
 
-export function createPersistedStore<T extends object>(key: string, initial: () => T, version = 1): PersistedStore<T> {
+export function createPersistedStore<T extends object>(
+  key: string,
+  initial: () => T,
+  version = 1,
+  restore?: (saved: unknown, base: T) => T,
+): PersistedStore<T> {
   let state: T = initial();
   const listeners = new Set<() => void>();
   let saveTimer: ReturnType<typeof setTimeout> | null = null;
@@ -51,7 +56,9 @@ export function createPersistedStore<T extends object>(key: string, initial: () 
       const raw = await AsyncStorage.getItem(storageKey);
       if (raw) {
         try {
-          state = { ...initial(), ...(JSON.parse(raw) as T) };
+          const parsed: unknown = JSON.parse(raw);
+          const base = initial();
+          state = restore ? restore(parsed, base) : { ...base, ...(parsed as T) };
           emit();
         } catch {
           /* données corrompues : on repart des valeurs initiales */

@@ -10,14 +10,22 @@ const light: Palette = {
   textMuted: '#59625C',
   primary: '#0E6B5C',
   primaryText: '#FFFFFF',
-  accent: '#9A6B1C',
+  // Or assombri d’un cran (#9A6B1C = 4,37:1) pour AA sur #FBF7EF.
+  accent: '#99681C',
   success: '#2E7D4F',
-  warning: '#A86A12',
+  warning: '#A76112',
   danger: '#B42318',
   info: '#2B5FA8',
+  onAccent: '#FFFFFF',
+  onSuccess: '#FFFFFF',
+  onDanger: '#FFFFFF',
+  onWarning: '#FFFFFF',
   dark: false,
   radius: 16,
   fontScale: 1,
+  digits: 'latn',
+  reduceMotion: false,
+  rtl: false,
 };
 
 const dark: Palette = {
@@ -34,9 +42,16 @@ const dark: Palette = {
   warning: '#E6A23C',
   danger: '#F2726A',
   info: '#79A8F2',
+  onAccent: '#06231D',
+  onSuccess: '#06231D',
+  onDanger: '#06231D',
+  onWarning: '#06231D',
   dark: true,
   radius: 16,
   fontScale: 1,
+  digits: 'latn',
+  reduceMotion: false,
+  rtl: false,
 };
 
 const lightHC: Palette = {
@@ -66,10 +81,44 @@ const darkHC: Palette = {
   accent: '#FFD27A',
 };
 
-export function makePalette(opts: { dark: boolean; contrast: boolean; scale: number }): Palette {
+/**
+ * Typographie et cibles. L’arabe est plus grand que le latin, avec un
+ * interligne et un padding vertical pour que les ḥarakāt ne soient pas coupés.
+ * Les ligatures arabes ne sont pas désactivées.
+ */
+export const TYPE = {
+  arabicToLatin: 1.4,
+  arabicLineHeight: 1.9,
+  harakatPad: 0.1,
+  minTarget: 44,
+  motionMs: 180,
+} as const;
+
+export function makePalette(opts: {
+  dark: boolean;
+  contrast: boolean;
+  scale: number;
+  digits?: Palette['digits'];
+  reduceMotion?: boolean;
+  rtl?: boolean;
+}): Palette {
   const base = opts.dark ? (opts.contrast ? darkHC : dark) : opts.contrast ? lightHC : light;
-  return { ...base, fontScale: opts.scale };
+  return {
+    ...base,
+    fontScale: opts.scale,
+    digits: opts.digits ?? 'latn',
+    reduceMotion: !!opts.reduceMotion,
+    rtl: !!opts.rtl,
+  };
 }
 
 export const SPLASH_BG = '#0E4D45';
-export const UNIT_COLORS = ['#0E6B5C', '#2B5FA8', '#7B3FA0', '#B0472B', '#9A6B1C', '#1F7A8C', '#2E7D4F', '#A3376B', '#4D5BB5', '#6B5B2E', '#0B5D73'];
+/** Couleurs d’unité sur fond clair (texte ≥ 4,5:1 sur #FFFFFF et #FBF7EF). */
+export const UNIT_COLORS = ['#0E6B5C', '#2B5FA8', '#7B3FA0', '#B0472B', '#99681C', '#1F7A8C', '#2E7D4F', '#A3376B', '#4D5BB5', '#6B5B2E', '#0B5D73'];
+/** Même teinte, éclaircie pour un texte ≥ 4,5:1 sur #17221F. */
+export const UNIT_COLORS_DARK = ['#4F9388', '#6288BF', '#A277BC', '#C3725D', '#A8803C', '#4791A0', '#53946E', '#BD6F95', '#7782C6', '#938767', '#568F9E'];
+
+export function unitInk(index: number, dark: boolean): string {
+  const list = dark ? UNIT_COLORS_DARK : UNIT_COLORS;
+  return list[index % list.length];
+}

@@ -16,6 +16,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "ch.mohamadba.arabgram",
+      "appleTeamId": "Y9XF9RY2BU",
       "buildNumber": "1",
       "config": {
         "usesNonExemptEncryption": false

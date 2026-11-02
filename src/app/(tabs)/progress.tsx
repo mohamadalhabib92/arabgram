@@ -7,7 +7,7 @@ import { AR } from '@/components/common';
 import { UNITS } from '@/data/curriculum';
 import { PASSAGES } from '@/data/passages';
 import { PHONETIC_TEST } from '@/data/tashkil';
-import { UNIT_COLORS } from '@/theme';
+import { unitInk } from '@/theme';
 import { useI18n } from '@/lib/i18n';
 import { addDaysIso, boxCounts, store, streak, today, unitProgress } from '@/state';
 
@@ -65,7 +65,7 @@ export default function ProgressTab() {
                   <T v="small">{u.id}. {lang === 'ar' ? u.ar : u[s.settings.gloss]}</T>
                   <T v="caption" muted>{Math.round(v * 100)} %</T>
                 </Row>
-                <Progress value={v} color={UNIT_COLORS[(u.id - 1) % UNIT_COLORS.length]} height={6} />
+                <Progress value={v} color={unitInk(u.id - 1, p.dark)} height={6} />
               </View>
             );
           })}

@@ -5,7 +5,8 @@ import { alpha, useTheme } from '@/kit/theme';
 import { Banner, Button, Card, Header, Ionicons, Progress, Row, Screen, Section, T, useToast } from '@/kit/ui';
 import { AR, Pill } from '@/components/common';
 import { UNITS, playable } from '@/data/curriculum';
-import { UNIT_COLORS } from '@/theme';
+import { unitInk } from '@/theme';
+import { showTutorScreen } from '@/config';
 import { useI18n } from '@/lib/i18n';
 import { dueItems, nextLesson, store, streak, today, unitProgress, unitUnlocked } from '@/state';
 
@@ -77,7 +78,7 @@ export default function Learn() {
         {UNITS.map((u, i) => {
           const open = unitUnlocked(s, u.id);
           const prog = unitProgress(s, u.id);
-          const color = UNIT_COLORS[i % UNIT_COLORS.length];
+          const color = unitInk(i, p.dark);
           const nPlay = u.lessons.filter(playable).length;
           const label = `${t('unit')} ${u.id} — ${lang === 'ar' ? u.ar : u[gloss]}${open ? '' : ' — ' + t('locked')}`;
           return (
@@ -115,7 +116,7 @@ export default function Learn() {
         <Row wrap>
           <Button small kind="secondary" icon="text" title={t('tashkil')} onPress={() => router.push('/tashkil-test')} />
           <Button small kind="secondary" icon="document-text-outline" title={t('sources')} onPress={() => router.push('/sources')} />
-          <Button small kind="secondary" icon="sparkles-outline" title={t('tutor')} onPress={() => router.push('/tutor')} />
+          {showTutorScreen() ? <Button small kind="secondary" icon="sparkles-outline" title={t('tutor')} onPress={() => router.push('/tutor')} /> : null}
         </Row>
       </Section>
     </Screen>

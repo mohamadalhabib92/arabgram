@@ -2,8 +2,8 @@ import type { LicenseId } from './licenses';
 
 /**
  * Curriculum ArabGram — 11 unités, Arabic-first.
- * Contenu original (voir licenses.ts) sauf unité 11 : proverbes et poésie du domaine public,
- * plus un emplacement « Placeholder / non licencié — à remplacer ».
+ * Contenu original (voir licenses.ts) sauf unité 11 : proverbes et poésie
+ * présentés avec un statut « à valider », plus u11l3 « Contenu à fournir ».
  */
 export type Item = {
   id: string;
@@ -291,7 +291,7 @@ export const UNITS: Unit[] = [
         ['ثَمَانِيَة ٨', 'thamāniya', 'huit (8)', 'eight (8)'],
         ['تِسْعَة ٩', 'tisʿa', 'neuf (9)', 'nine (9)'],
         ['عَشَرَة ١٠', 'ʿashara', 'dix (10)', 'ten (10)'],
-      ], { fr: 'Les chiffres s’écrivent de gauche à droite, même dans un texte arabe : ١٠ = 10.', en: 'Digits run left-to-right even inside Arabic text: ١٠ = 10.' }),
+      ], { fr: 'Les chiffres s’écrivent souvent de gauche à droite, même dans un texte arabe : ١٠ = 10. À valider.', en: 'Digits often run left-to-right even inside Arabic text: ١٠ = 10. To be confirmed.' }),
     ],
   },
   {
@@ -325,7 +325,7 @@ export const UNITS: Unit[] = [
     fr: 'Lecture : proverbes et poésie',
     en: 'Reading: proverbs & poetry',
     icon: 'اقرأ',
-    goal: { fr: 'Lire des textes authentiques du domaine public.', en: 'Read authentic public-domain texts.' },
+    goal: { fr: 'Lire des proverbes et des vers classiques (attribution et traduction : à valider).', en: 'Read proverbs and classical verses (attribution and translation: to be confirmed).' },
     lessons: [
       lesson(11, 1, { ar: 'أَمْثَال', fr: 'Proverbes traditionnels', en: 'Traditional proverbs' }, 'phrase', [
         ['العِلْمُ نُورٌ', 'al-ʿilmu nūrun', 'le savoir est lumière', 'knowledge is light'],
@@ -333,13 +333,13 @@ export const UNITS: Unit[] = [
         ['مَنْ جَدَّ وَجَدَ', 'man jadda wajada', 'qui persévère trouve', 'whoever strives, finds'],
         ['الصَّبْرُ مِفْتَاحُ الفَرَجِ', 'aṣ-ṣabru miftāḥu l-faraj', 'la patience est la clé du soulagement', 'patience is the key to relief'],
         ['الجَارُ قَبْلَ الدَّارِ', 'al-jāru qabla d-dār', 'le voisin avant la maison', 'the neighbour before the house'],
-      ], { fr: 'Remarquez l’assimilation : al + ṣ → aṣ-ṣabru (lettre solaire).', en: 'Note assimilation: al + ṣ → aṣ-ṣabru (sun letter).' }, 'pd-proverbs'),
+      ], { fr: 'Remarquez l’assimilation : al + ṣ → aṣ-ṣabru (lettre solaire). Description pédagogique — à valider. Statut des proverbes : à valider.', en: 'Note assimilation: al + ṣ → aṣ-ṣabru (sun letter). Teaching note — to be confirmed. Proverb status: to be confirmed.' }, 'pd-proverbs'),
       lesson(11, 2, { ar: 'مِنَ الشِّعْرِ القَدِيمِ', fr: 'Vers classiques', en: 'Classical verses' }, 'phrase', [
         ['الخَيْلُ وَاللَّيْلُ وَالبَيْدَاءُ تَعْرِفُنِي', 'al-khaylu wa-l-laylu wa-l-baydāʾu taʿrifunī', 'les chevaux, la nuit et le désert me connaissent (al-Mutanabbī)', 'the horses, the night and the desert know me (al-Mutanabbī)'],
         ['وَالسَّيْفُ وَالرُّمْحُ وَالقِرْطَاسُ وَالقَلَمُ', 'wa-s-sayfu wa-r-rumḥu wa-l-qirṭāsu wa-l-qalamu', 'et l’épée, la lance, le papier et le calame (al-Mutanabbī)', 'and the sword, the spear, the paper and the pen (al-Mutanabbī)'],
         ['قِفَا نَبْكِ مِنْ ذِكْرَى حَبِيبٍ وَمَنْزِلِ', 'qifā nabki min dhikrā ḥabībin wa-manzili', 'arrêtez-vous, pleurons au souvenir d’un être aimé et d’une demeure (Imruʾ al-Qays)', 'halt, let us weep at the memory of a beloved and a dwelling (Imruʾ al-Qays)'],
         ['أَنَا الَّذِي نَظَرَ الأَعْمَى إِلَى أَدَبِي', 'ana lladhī naẓara l-aʿmā ilā adabī', 'je suis celui dont l’aveugle a vu la littérature (al-Mutanabbī)', 'I am the one whose literature the blind man saw (al-Mutanabbī)'],
-      ], { fr: 'Textes du domaine public ; traductions littérales originales ArabGram.', en: 'Public-domain texts; original literal translations by ArabGram.' }, 'pd-classical'),
+      ], { fr: 'Attribution, vocalisation et statut : à valider. Traductions littérales ArabGram — à valider. Aucune traduction publiée n’est reprise.', en: 'Attribution, vocalisation and status: to be confirmed. Literal ArabGram translations — to be confirmed. No published translation is reused.' }, 'pd-classical'),
       { id: 'u11l3', unitId: 11, title: { ar: 'نُصُوص القِرَاءَة', fr: 'Textes longs (emplacement)', en: 'Long texts (slot)' }, license: 'placeholder', items: [] },
     ],
   },
