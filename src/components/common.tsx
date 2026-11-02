@@ -103,21 +103,22 @@ export function AudioButton({ text, size = 22 }: { text: string; size?: number }
 }
 
 export function LicenseTag({ id, compact }: { id: LicenseId; compact?: boolean }) {
-  const t = useTheme();
-  const { lang } = useI18n();
+  const theme = useTheme();
+  const { lang, t } = useI18n();
   const lic = LICENSES[id];
-  const color = lic.kind === 'placeholder' ? t.warning : lic.kind === 'public-domain' ? t.info : t.success;
+  const color = lic.kind === 'placeholder' ? theme.warning : lic.kind === 'public-domain' ? theme.info : theme.success;
   const icon = lic.kind === 'placeholder' ? 'alert-circle' : lic.kind === 'public-domain' ? 'globe-outline' : 'ribbon-outline';
+  const review = t('toValidate');
   return (
     <Pressable
       accessibilityRole="link"
-      accessibilityLabel={lic.short[lang]}
+      accessibilityLabel={`${lic.short[lang]}, ${review}`}
       onPress={() => router.push('/sources')}
       style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6, alignSelf: 'flex-start', paddingHorizontal: compact ? 8 : 10, paddingVertical: 4, minHeight: TYPE.minTarget, borderRadius: 999, backgroundColor: alpha(color, 0.12) }}
     >
       <Ionicons name={icon} size={14} color={color} />
-      <Text style={{ color, fontSize: 12 * t.fontScale, fontWeight: '700' }}>{lic.short[lang]}</Text>
-      <Text style={{ color: t.warning, fontSize: 11 * t.fontScale, fontWeight: '700' }}>à valider</Text>
+      <Text style={{ color, fontSize: 12 * theme.fontScale, fontWeight: '700' }}>{lic.short[lang]}</Text>
+      <Text style={{ color: theme.warning, fontSize: 11 * theme.fontScale, fontWeight: '700' }}>{review}</Text>
     </Pressable>
   );
 }

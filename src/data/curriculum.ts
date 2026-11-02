@@ -291,7 +291,7 @@ export const UNITS: Unit[] = [
         ['ثَمَانِيَة ٨', 'thamāniya', 'huit (8)', 'eight (8)'],
         ['تِسْعَة ٩', 'tisʿa', 'neuf (9)', 'nine (9)'],
         ['عَشَرَة ١٠', 'ʿashara', 'dix (10)', 'ten (10)'],
-      ], { fr: 'Les chiffres s’écrivent souvent de gauche à droite, même dans un texte arabe : ١٠ = 10. À valider.', en: 'Digits often run left-to-right even inside Arabic text: ١٠ = 10. To be confirmed.' }),
+      ], { fr: 'Les chiffres s’écrivent de gauche à droite, même dans un texte arabe : ١٠ = 10. À valider.', en: 'Digits run left-to-right even inside Arabic text: ١٠ = 10. To be confirmed.' }),
     ],
   },
   {

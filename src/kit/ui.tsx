@@ -23,6 +23,7 @@ import { useOnline } from './net';
 import { alpha, useTheme } from './theme';
 import { TYPE } from '@/theme';
 
+/** Nombres affichés seulement : formatDigits ne réécrit pas un identifiant (u11l3). */
 function dig(node: React.ReactNode, style: 'latn' | 'arab'): React.ReactNode {
   if (style !== 'arab') return node;
   if (typeof node === 'string' || typeof node === 'number') return formatDigits(node, style);
