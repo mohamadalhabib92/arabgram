@@ -14,9 +14,19 @@ export type Palette = {
   warning: string;
   danger: string;
   info: string;
+  /** Texte posé sur `accent` (bouton, pastille). */
+  onAccent: string;
+  onSuccess: string;
+  onDanger: string;
+  onWarning: string;
   dark: boolean;
   radius: number;
   fontScale: number;
+  /** Chiffres d’interface : latins (0–9) ou indo-arabes (٠–٩). */
+  digits: 'latn' | 'arab';
+  reduceMotion: boolean;
+  /** Interface arabe : miroir des icônes directionnelles. */
+  rtl: boolean;
 };
 
 const Ctx = createContext<Palette | null>(null);

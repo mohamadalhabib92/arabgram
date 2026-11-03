@@ -1,15 +1,19 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { Redirect } from 'expo-router';
 import { useTheme } from '@/kit/theme';
-import { Badge, Banner, Card, Row, Screen, Section, T } from '@/kit/ui';
+import { Badge, Banner, Button, Card, Row, Screen, Section, T } from '@/kit/ui';
 import { BackHeader } from '@/components/common';
 import { maskValue, isConfigured } from '@/kit/config';
-import { CONFIG, tutorReady } from '@/config';
+import { CONFIG, ENV, showTutorScreen, tutorReady } from '@/config';
 import { useI18n } from '@/lib/i18n';
+import { probeOptionalService } from '@/lib/optionalService';
 
 export default function Tutor() {
   const p = useTheme();
   const { pick } = useI18n();
   const ready = tutorReady();
+  const [probe, setProbe] = useState<'idle' | 'busy' | 'unconfigured' | 'ok' | 'down'>('idle');
+  if (!showTutorScreen()) return <Redirect href="/settings" />;
   return (
     <Screen header={<BackHeader title={pick({ fr: 'Tuteur IA — phase 2', ar: 'المُعَلِّمُ الذَّكِيّ — المَرْحَلَةُ ٢', en: 'AI tutor — phase 2' })} />}>
       <Banner
@@ -41,6 +45,20 @@ export default function Tutor() {
           </Card>
         ))}
         <T v="caption" muted>{ready ? pick({ fr: 'URL de serveur détectée — l’intégration reste à brancher en phase 2.', ar: 'تَمَّ رَصْدُ الخَادِم', en: 'Server URL detected — integration still to be wired in phase 2.' }) : pick({ fr: 'Aucun serveur configuré (normal pour la version hors ligne).', ar: 'لَا خَادِم', en: 'No server configured (expected for the offline version).' })}</T>
+        <Button
+          title={pick({ fr: 'Vérifier le service (n’envoie rien au démarrage)', ar: 'اِفْحَصِ الخِدْمَة', en: 'Check the service (nothing is sent at startup)' })}
+          kind="secondary"
+          icon="pulse-outline"
+          loading={probe === 'busy'}
+          onPress={async () => {
+            setProbe('busy');
+            const result = await probeOptionalService(ENV.tutorApiUrl);
+            setProbe(result);
+          }}
+        />
+        {probe === 'down' ? <Banner kind="warning" title={pick({ fr: 'Service optionnel indisponible', ar: 'خِدْمَةٌ اخْتِيَارِيَّةٌ غَيْرُ مُتَاحَة', en: 'Optional service unavailable' })} text={pick({ fr: 'Échec ou HTTP 402. Le reste de l’app n’est pas bloqué.', ar: 'فَشَلَ الاتِّصَال. بَقِيَّةُ التَّطْبِيقِ تَعْمَل.', en: 'Failure or HTTP 402. The rest of the app is not blocked.' })} /> : null}
+        {probe === 'unconfigured' ? <T v="caption" muted>{pick({ fr: 'URL encore un placeholder YOUR_* — aucun appel.', ar: 'العُنْوَانُ غَيْرُ مُهَيَّأ', en: 'URL is still a YOUR_* placeholder — no request.' })}</T> : null}
+        {probe === 'ok' ? <T v="caption" muted>{pick({ fr: 'Le serveur a répondu. L’intégration du tuteur reste en phase 2.', ar: 'الخَادِمُ أَجَاب', en: 'The server answered. Tutor integration stays in phase 2.' })}</T> : null}
       </Section>
     </Screen>
   );

@@ -15,20 +15,56 @@ export type PersistedStore<T> = {
   key: string;
 };
 
-export function createPersistedStore<T extends object>(key: string, initial: () => T, version = 1): PersistedStore<T> {
+export type KvStorage = {
+  getItem: (key: string) => Promise<string | null>;
+  setItem: (key: string, value: string) => Promise<void>;
+  removeItem: (key: string) => Promise<void>;
+};
+
+export function createPersistedStore<T extends object>(
+  key: string,
+  initial: () => T,
+  version = 1,
+  restore?: (saved: unknown, base: T) => T,
+  storage: KvStorage = AsyncStorage,
+): PersistedStore<T> {
   let state: T = initial();
   const listeners = new Set<() => void>();
   let saveTimer: ReturnType<typeof setTimeout> | null = null;
   const storageKey = `${key}@v${version}`;
+  /**
+   * Tant qu’un chargement n’a pas réussi, ou confirmé l’absence de donnée,
+   * aucune écriture. « Continuer hors ligne » ne doit pas remplacer
+   * arabgram@v1 par l’état vide encore en mémoire.
+   */
+  let loadSettled = false;
+  let dirtyWhileBlocked = false;
+  let epoch = 0;
 
   const emit = () => listeners.forEach((l) => l());
-  const persist = () => {
+  const writeSoon = () => {
     if (saveTimer) clearTimeout(saveTimer);
     saveTimer = setTimeout(() => {
-      AsyncStorage.setItem(storageKey, JSON.stringify(state)).catch(() => {
+      saveTimer = null;
+      storage.setItem(storageKey, JSON.stringify(state)).catch(() => {
         /* stockage indisponible : on garde l'état en mémoire */
       });
     }, 150);
+  };
+  const persist = () => {
+    if (!loadSettled) {
+      dirtyWhileBlocked = true;
+      if (saveTimer) clearTimeout(saveTimer);
+      saveTimer = null;
+      return;
+    }
+    writeSoon();
+  };
+  const settleLoad = () => {
+    loadSettled = true;
+    if (!dirtyWhileBlocked) return;
+    dirtyWhileBlocked = false;
+    writeSoon();
   };
   const subscribe = (l: () => void) => {
     listeners.add(l);
@@ -48,20 +84,37 @@ export function createPersistedStore<T extends object>(key: string, initial: () 
     use: () => useSyncExternalStore(subscribe, () => state, () => state),
     useSelect: <S,>(sel: (s: T) => S) => useSyncExternalStore(subscribe, () => sel(state), () => sel(state)),
     hydrate: async () => {
-      const raw = await AsyncStorage.getItem(storageKey);
+      const ticket = ++epoch;
+      let raw: string | null;
+      try {
+        raw = await storage.getItem(storageKey);
+      } catch {
+        return;
+      }
+      if (ticket !== epoch) return;
       if (raw) {
         try {
-          state = { ...initial(), ...(JSON.parse(raw) as T) };
+          const parsed: unknown = JSON.parse(raw);
+          const base = initial();
+          state = restore ? restore(parsed, base) : { ...base, ...(parsed as T) };
           emit();
         } catch {
-          /* données corrompues : on repart des valeurs initiales */
+          /* fichier présent mais illisible : ne pas l’écraser par l’état vide */
+          return;
         }
       }
+      if (ticket !== epoch) return;
+      settleLoad();
     },
     reset: async () => {
+      epoch += 1;
       state = initial();
       emit();
-      await AsyncStorage.removeItem(storageKey);
+      if (saveTimer) clearTimeout(saveTimer);
+      saveTimer = null;
+      dirtyWhileBlocked = false;
+      await storage.removeItem(storageKey);
+      loadSettled = true;
     },
   };
   return store;

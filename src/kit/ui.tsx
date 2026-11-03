@@ -18,8 +18,18 @@ import {
   ViewStyle,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { formatDigits } from './format';
 import { useOnline } from './net';
 import { alpha, useTheme } from './theme';
+import { TYPE } from '@/theme';
+
+/** Nombres affichés seulement : formatDigits ne réécrit pas un identifiant (u11l3). */
+function dig(node: React.ReactNode, style: 'latn' | 'arab'): React.ReactNode {
+  if (style !== 'arab') return node;
+  if (typeof node === 'string' || typeof node === 'number') return formatDigits(node, style);
+  if (Array.isArray(node)) return node.map((child) => dig(child, style));
+  return node;
+}
 
 export type IconName = React.ComponentProps<typeof Ionicons>['name'];
 export { Ionicons };
@@ -77,7 +87,7 @@ export function T({
         style,
       ]}
     >
-      {children}
+      {dig(children, t.digits)}
     </Text>
   );
 }
@@ -148,8 +158,8 @@ export function Card({ children, style, onPress, accent, a11y }: { children: Rea
     borderColor: t.border,
     padding: 14,
     gap: 8,
-    borderLeftWidth: accent ? 3 : StyleSheet.hairlineWidth,
-    borderLeftColor: accent ?? t.border,
+    borderStartWidth: accent ? 3 : StyleSheet.hairlineWidth,
+    borderStartColor: accent ?? t.border,
   };
   if (onPress)
     return (
@@ -206,7 +216,7 @@ export function Button({
 }) {
   const t = useTheme();
   const bg = { primary: t.primary, secondary: t.surface2, ghost: 'transparent', danger: t.danger, success: t.success }[kind];
-  const fg = { primary: t.primaryText, secondary: t.text, ghost: t.primary, danger: '#fff', success: '#fff' }[kind];
+  const fg = { primary: t.primaryText, secondary: t.text, ghost: t.primary, danger: t.onDanger, success: t.onSuccess }[kind];
   return (
     <Pressable
       accessibilityRole="button"
@@ -216,7 +226,7 @@ export function Button({
       onPress={onPress}
       style={({ pressed }) => [
         {
-          minHeight: small ? 44 : 48,
+          minHeight: small ? TYPE.minTarget : 48,
           paddingHorizontal: small ? 12 : 18,
           borderRadius: t.radius - 2,
           backgroundColor: bg,
@@ -233,7 +243,7 @@ export function Button({
       ]}
     >
       {loading ? <ActivityIndicator color={fg} /> : icon ? <Ionicons name={icon} size={small ? 16 : 18} color={fg} /> : null}
-      <Text style={{ color: fg, fontWeight: '700', fontSize: (small ? 13 : 15) * t.fontScale }}>{title}</Text>
+      <Text style={{ color: fg, fontWeight: '700', fontSize: (small ? 13 : 15) * t.fontScale }}>{formatDigits(title, t.digits)}</Text>
     </Pressable>
   );
 }
@@ -262,7 +272,7 @@ export function Chip({ label, selected, onPress, color, icon }: { label: string;
       accessibilityState={{ selected: !!selected }}
       onPress={onPress}
       style={{
-        minHeight: 36,
+        minHeight: TYPE.minTarget,
         paddingHorizontal: 12,
         borderRadius: 18,
         borderWidth: 1,
@@ -274,7 +284,7 @@ export function Chip({ label, selected, onPress, color, icon }: { label: string;
       }}
     >
       {icon ? <Ionicons name={icon} size={14} color={selected ? c : t.textMuted} /> : null}
-      <Text style={{ color: selected ? c : t.text, fontWeight: selected ? '700' : '500', fontSize: 13 * t.fontScale }}>{label}</Text>
+      <Text style={{ color: selected ? c : t.text, fontWeight: selected ? '700' : '500', fontSize: 13 * t.fontScale }}>{formatDigits(label, t.digits)}</Text>
     </Pressable>
   );
 }
@@ -285,7 +295,7 @@ export function Badge({ label, color, icon }: { label: string; color?: string; i
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10, backgroundColor: alpha(c, 0.15) }}>
       {icon ? <Ionicons name={icon} size={12} color={c} /> : null}
-      <Text style={{ color: c, fontSize: 11 * t.fontScale, fontWeight: '700' }}>{label}</Text>
+      <Text style={{ color: c, fontSize: 11 * t.fontScale, fontWeight: '700' }}>{formatDigits(label, t.digits)}</Text>
     </View>
   );
 }
@@ -302,9 +312,9 @@ export function Segmented<K extends string>({ options, value, onChange }: { opti
             accessibilityRole="button"
             accessibilityState={{ selected: on }}
             onPress={() => onChange(o.key)}
-            style={{ flex: 1, minHeight: 38, borderRadius: t.radius - 3, alignItems: 'center', justifyContent: 'center', backgroundColor: on ? t.surface : 'transparent' }}
+            style={{ flex: 1, minHeight: TYPE.minTarget, borderRadius: t.radius - 3, alignItems: 'center', justifyContent: 'center', backgroundColor: on ? t.surface : 'transparent' }}
           >
-            <Text style={{ color: on ? t.text : t.textMuted, fontWeight: on ? '700' : '500', fontSize: 13 * t.fontScale }}>{o.label}</Text>
+            <Text style={{ color: on ? t.text : t.textMuted, fontWeight: on ? '700' : '500', fontSize: 13 * t.fontScale }}>{formatDigits(o.label, t.digits)}</Text>
           </Pressable>
         );
       })}
@@ -390,7 +400,7 @@ export function ListItem({ title, sub, right, icon, iconColor, onPress }: { titl
         ) : null}
       </View>
       {right}
-      {onPress && !right ? <Ionicons name="chevron-forward" size={18} color={t.textMuted} /> : null}
+      {onPress && !right ? <Ionicons name={t.rtl ? 'chevron-back' : 'chevron-forward'} size={18} color={t.textMuted} /> : null}
     </Row>
   );
   if (!onPress) return content;
@@ -429,8 +439,8 @@ export function OfflineBadge({ text = 'Hors ligne — données en cache' }: { te
   if (online) return null;
   return (
     <View accessibilityRole="alert" style={{ backgroundColor: t.warning, paddingVertical: 6, paddingHorizontal: 12, flexDirection: 'row', gap: 6, alignItems: 'center', justifyContent: 'center' }}>
-      <Ionicons name="cloud-offline" size={14} color="#111" />
-      <Text style={{ color: '#111', fontWeight: '700', fontSize: 12 }}>{text}</Text>
+      <Ionicons name="cloud-offline" size={14} color={t.onWarning} />
+      <Text style={{ color: t.onWarning, fontWeight: '700', fontSize: 12 }}>{formatDigits(text, t.digits)}</Text>
     </View>
   );
 }
@@ -457,8 +467,12 @@ export function EmptyState({ icon = 'sparkles', title, text, action }: { icon?: 
 
 export function Skeleton({ height = 16, width = '100%', style }: { height?: number; width?: number | `${number}%`; style?: StyleProp<ViewStyle> }) {
   const t = useTheme();
-  const op = useRef(new Animated.Value(0.4)).current;
+  const op = useRef(new Animated.Value(t.reduceMotion ? 0.7 : 0.4)).current;
   useEffect(() => {
+    if (t.reduceMotion) {
+      op.setValue(0.7);
+      return;
+    }
     const loop = Animated.loop(
       Animated.sequence([
         Animated.timing(op, { toValue: 1, duration: 650, useNativeDriver: Platform.OS !== 'web' }),
@@ -467,7 +481,7 @@ export function Skeleton({ height = 16, width = '100%', style }: { height?: numb
     );
     loop.start();
     return () => loop.stop();
-  }, [op]);
+  }, [op, t.reduceMotion]);
   return <Animated.View style={[{ height, width, borderRadius: 8, backgroundColor: t.surface2, opacity: op }, style]} />;
 }
 
@@ -568,29 +582,69 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
 }
 
 /* ---------- Boot sans "Loading" infini ---------- */
-export function BootGate({ hydrate, children, appName, timeoutMs = 4000 }: { hydrate: () => Promise<void>; children: React.ReactNode; appName: string; timeoutMs?: number }) {
+const BOOT_COPY = {
+  fr: {
+    title: 'Chargement plus long que prévu',
+    text: 'Le stockage local ne répond pas. Vous pouvez réessayer ou continuer avec les données déjà en mémoire (hors ligne).',
+    retry: 'Réessayer',
+    offline: 'Continuer hors ligne',
+  },
+  ar: {
+    title: 'التَّحْمِيلُ أَطْوَلُ مِنَ المُتَوَقَّع',
+    text: 'التَّخْزِينُ المَحَلِّيُّ لَا يَسْتَجِيب. أَعِدِ المُحَاوَلَةَ أَوْ وَاصِلْ بِمَا هُوَ فِي الذَّاكِرَة.',
+    retry: 'أَعِدِ المُحَاوَلَة',
+    offline: 'تَابِعْ دُونَ اتِّصَال',
+  },
+  en: {
+    title: 'This is taking longer than expected',
+    text: 'Local storage is not responding. Retry, or continue with what is already in memory (offline).',
+    retry: 'Retry',
+    offline: 'Continue offline',
+  },
+} as const;
+
+export function BootGate({
+  hydrate,
+  children,
+  appName,
+  timeoutMs = 8000,
+  lang = 'fr',
+}: {
+  hydrate: () => Promise<void>;
+  children: React.ReactNode;
+  appName: string;
+  timeoutMs?: number;
+  lang?: 'fr' | 'ar' | 'en';
+}) {
   const [state, setState] = useState<'loading' | 'ready' | 'fallback'>('loading');
   const t = useTheme();
+  const seq = useRef(0);
+  const copy = BOOT_COPY[lang] ?? BOOT_COPY.fr;
   const run = useCallback(() => {
+    const token = ++seq.current;
     setState('loading');
-    let done = false;
     const timer = setTimeout(() => {
-      if (!done) setState('fallback');
+      if (seq.current === token) setState((cur) => (cur === 'ready' ? cur : 'fallback'));
     }, timeoutMs);
     hydrate()
       .then(() => {
-        done = true;
+        if (seq.current !== token) return;
         clearTimeout(timer);
         setState('ready');
       })
       .catch(() => {
-        done = true;
+        if (seq.current !== token) return;
         clearTimeout(timer);
         setState('fallback');
       });
+    return () => clearTimeout(timer);
   }, [hydrate, timeoutMs]);
   useEffect(() => {
-    run();
+    const cancel = run();
+    return () => {
+      seq.current += 1;
+      cancel?.();
+    };
   }, [run]);
 
   if (state === 'ready') return <>{children}</>;
@@ -607,9 +661,16 @@ export function BootGate({ hydrate, children, appName, timeoutMs = 4000 }: { hyd
     );
   return (
     <View style={{ flex: 1, backgroundColor: t.bg, padding: 24, gap: 14, justifyContent: 'center', maxWidth: 520, width: '100%', alignSelf: 'center' }}>
-      <Banner kind="warning" title="Chargement plus long que prévu" text="Le stockage local ne répond pas. Vous pouvez réessayer ou continuer avec les données locales par défaut (hors ligne)." />
-      <Button title="Réessayer" icon="refresh" onPress={run} />
-      <Button title="Continuer hors ligne" kind="secondary" onPress={() => setState('ready')} />
+      <Banner kind="warning" title={copy.title} text={copy.text} />
+      <Button title={copy.retry} icon="refresh" onPress={run} />
+      <Button
+        title={copy.offline}
+        kind="secondary"
+        onPress={() => {
+          seq.current += 1;
+          setState('ready');
+        }}
+      />
     </View>
   );
 }

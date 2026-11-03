@@ -1,6 +1,25 @@
 // Formatage FR sans dépendre d'Intl (compatibilité Hermes / web).
 const NBSP = '\u202F';
 
+const WEST_DIGITS = '0123456789';
+const EAST_DIGITS = '٠١٢٣٤٥٦٧٨٩';
+
+/**
+ * Nombres affichés seulement. `latn` ne touche pas aux chiffres indo-arabes
+ * déjà présents dans les leçons (unité 9). `arab` convertit 0–9 → ٠–٩
+ * sauf s’ils collent à une lettre latine : `u11l3` reste un identifiant.
+ */
+export function formatDigits(value: string | number, style: 'latn' | 'arab' = 'latn'): string {
+  const s = String(value);
+  if (style !== 'arab') return s;
+  return s.replace(/[0-9]+/g, (run: string, offset: number) => {
+    const before = offset > 0 ? s.charAt(offset - 1) : '';
+    const after = s.charAt(offset + run.length);
+    if (/[A-Za-z]/.test(before) || /[A-Za-z]/.test(after)) return run;
+    return run.replace(/[0-9]/g, (d) => EAST_DIGITS[WEST_DIGITS.indexOf(d)] ?? d);
+  });
+}
+
 export function fmtNumber(n: number, decimals = 0): string {
   const neg = n < 0;
   const fixed = Math.abs(n).toFixed(decimals);

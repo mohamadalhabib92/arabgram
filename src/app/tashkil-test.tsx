@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { alpha, useTheme } from '@/kit/theme';
 import { Banner, Button, Card, Chip, Ionicons, Progress, Row, Screen, Section, Segmented, T } from '@/kit/ui';
-import { AR, AudioButton, BackHeader } from '@/components/common';
+import { AR, AudioButton, BackHeader, LicenseTag } from '@/components/common';
 import { BASE_LETTERS, MARKS, PHONETIC_TEST, RENDER_SAMPLES } from '@/data/tashkil';
 import { shuffle } from '@/lib/drill';
 import { useI18n } from '@/lib/i18n';
@@ -54,6 +54,7 @@ export default function TashkilTest() {
 
   return (
     <Screen header={<BackHeader title={pick({ fr: 'Test de tashkīl', ar: 'اِخْتِبَارُ التَّشْكِيل', en: 'Tashkīl test' })} subtitle={pick({ fr: 'Rendu des diacritiques et lecture phonétique', ar: 'عَرْضُ الحَرَكَاتِ وَالقِرَاءَة', en: 'Diacritic rendering and phonetic reading' })} />}>
+      <LicenseTag id="ag-original" />
       <Section title={pick({ fr: '1. Rendu', ar: '١. العَرْض', en: '1. Rendering' })}>
         <Card>
           <Segmented<'naskh' | 'system'>

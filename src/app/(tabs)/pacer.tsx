@@ -23,7 +23,7 @@ function Lane({ label, value, color, icon }: { label: string; value: number; col
       <View style={{ height: 30, borderRadius: 15, backgroundColor: p.surface2, justifyContent: 'center' }}>
         <View style={{ position: 'absolute', top: 0, bottom: 0, start: 0, width: `${v * 100}%`, borderRadius: 15, backgroundColor: alpha(color, 0.25) }} />
         <View style={{ position: 'absolute', start: `${v * 92}%`, width: 30, height: 30, borderRadius: 15, backgroundColor: color, alignItems: 'center', justifyContent: 'center' }}>
-          <Ionicons name={icon} size={16} color="#fff" />
+          <Ionicons name={icon} size={16} color={color === p.accent ? p.onAccent : p.primaryText} />
         </View>
       </View>
     </View>

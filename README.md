@@ -74,7 +74,9 @@ Dans `app.json`, `expo.experiments.baseUrl` vaut `/arabgram`. **Le dépôt doit 
 Le cœur n’a besoin d’**aucune** variable. Le fichier `.env.example` ne contient que la phase 2 :
 
 - `EXPO_PUBLIC_TUTOR_API_URL=YOUR_TUTOR_API_URL` : l’URL publique de **votre** serveur tuteur (aucun secret).
-- `OPENAI_API_KEY` : **côté serveur uniquement**, jamais dans l’app ni dans une variable `EXPO_PUBLIC_*`.
+- `OPENAI_API_KEY=YOUR_OPENAI_API_KEY` et `PORT=YOUR_PORT` : **côté serveur uniquement**, jamais dans l’app ni dans une variable `EXPO_PUBLIC_*`.
+- `EXPO_PUBLIC_EXAMPLE_ENV_VAR` est supprimée.
+- `EXPO_PUBLIC_SENTRY_DSN=YOUR_SENTRY_DSN` : journal de crash désactivé tant que la valeur est un placeholder.
 
 L’écran « Tuteur IA » indique clairement que l’IA n’est pas active.
 
@@ -84,5 +86,5 @@ L’écran « Tuteur IA » indique clairement que l’IA n’est pas active.
 - La qualité de l’audio dépend de la voix système. Sur le web, certains navigateurs n’ont pas de voix arabe.
 - La leçon de lecture longue `u11l3` est un placeholder.
 - La licence du contenu original reste à confirmer par le propriétaire.
-- Identifiants iOS et Android : `com.yourcompany.arabgram`, à remplacer avant de publier sur les stores.
+- Identifiants iOS et Android : `ch.mohamadba.arabgram` (ne pas les modifier). Équipe Apple : `Y9XF9RY2BU`. `EXPO_NO_CAPABILITY_SYNC=1`.
 - Pas de synchronisation entre appareils : les données restent locales, mais l’export JSON est possible.

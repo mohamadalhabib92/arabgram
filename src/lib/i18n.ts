@@ -31,6 +31,10 @@ const S = {
   tashkil: { fr: 'Test tashkīl', ar: 'اِخْتِبَار التَّشْكِيل', en: 'Tashkīl test' },
   tutor: { fr: 'Tuteur IA (Phase 2)', ar: 'المُعَلِّم الذَّكِيّ', en: 'AI tutor (Phase 2)' },
   quit: { fr: 'Quitter l’exercice', ar: 'خُرُوج', en: 'Quit exercise' },
+  toValidate: { fr: 'à valider', ar: 'لِلتَّأْكِيد', en: 'to be confirmed' },
+  originalToValidate: { fr: 'Original · à valider', ar: 'أَصْلِيّ · لِلتَّأْكِيد', en: 'Original · to be confirmed' },
+  statusToValidate: { fr: 'Statut à valider', ar: 'الحَالَةُ لِلتَّأْكِيد', en: 'Status to be confirmed' },
+  contentToProvide: { fr: 'Contenu à fournir', ar: 'مُحْتَوًى مَطْلُوب', en: 'Content to be provided' },
 } as const;
 
 export type SKey = keyof typeof S;
