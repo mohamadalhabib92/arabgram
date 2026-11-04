@@ -3,6 +3,7 @@ import type { ColorValue } from 'react-native';
 import { Redirect, Tabs } from 'expo-router';
 import { useTheme } from '@/kit/theme';
 import { Ionicons } from '@/kit/ui';
+import { haptic } from '@/kit/haptics';
 import { useI18n } from '@/lib/i18n';
 import { formatDigits } from '@/kit/format';
 import { dueItems, store } from '@/state';
@@ -20,11 +21,12 @@ export default function TabsLayout() {
     };
   return (
     <Tabs
+      screenListeners={{ tabPress: () => haptic.select() }}
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: p.primary,
         tabBarInactiveTintColor: p.textMuted,
-        tabBarStyle: { backgroundColor: p.surface, borderTopColor: p.border, minHeight: 60 },
+        tabBarStyle: { backgroundColor: p.surface, borderTopColor: p.border, minHeight: 60, elevation: 0, shadowOpacity: 0 },
         tabBarLabelStyle: { fontSize: 12 * Math.min(p.fontScale, 1.2), fontWeight: '600' },
       }}
     >

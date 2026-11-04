@@ -5,6 +5,7 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ThemeProvider } from '@/kit/theme';
 import { BootGate, OfflineBadge, ToastProvider } from '@/kit/ui';
+import { DelightProvider } from '@/kit/premium';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { OptionalServiceBanner } from '@/components/OptionalServiceBanner';
 import { makePalette } from '@/theme';
@@ -43,6 +44,7 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <ThemeProvider value={palette}>
           <ToastProvider>
+            <DelightProvider>
             <StatusBar style={dark ? 'light' : 'dark'} />
             <View style={{ flex: 1, direction: rtl ? 'rtl' : 'ltr', backgroundColor: palette.bg }}>
               <BootGate hydrate={hydrate} appName="ArabGram · عَرَبْغْرَام" timeoutMs={8000} lang={settings.lang}>
@@ -51,6 +53,7 @@ export default function RootLayout() {
                 <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: palette.bg } }} />
               </BootGate>
             </View>
+            </DelightProvider>
           </ToastProvider>
         </ThemeProvider>
       </SafeAreaProvider>

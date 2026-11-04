@@ -7,6 +7,8 @@ import { AR, AudioButton, LicenseTag, Translit } from '@/components/common';
 import { LESSON_BY_ID } from '@/data/curriculum';
 import { buildDrill, makeQuestion, type Question } from '@/lib/drill';
 import { useI18n } from '@/lib/i18n';
+import { haptic } from '@/kit/haptics';
+import { Pop, useCelebrate } from '@/kit/premium';
 import { PASS, addXp, dueItems, gradeItem, recordLesson, store } from '@/state';
 
 type Phase = 'ask' | 'feedback' | 'done';
@@ -33,6 +35,7 @@ export default function Drill() {
   const [phase, setPhase] = useState<Phase>('ask');
   const [firstOk, setFirstOk] = useState(0);
   const [xp, setXp] = useState(0);
+  const celebrate = useCelebrate();
   const total = initialQueue.length;
 
   if (!total)
@@ -54,6 +57,8 @@ export default function Drill() {
     const ok = opt === q.answer;
     setPicked(opt);
     setPhase('feedback');
+    if (ok) haptic.success();
+    else haptic.warning();
     if (!q.retry) {
       gradeItem(q.item.id, ok);
       if (ok) setFirstOk((n) => n + 1);
@@ -78,6 +83,7 @@ export default function Drill() {
     addXp(gained);
     setXp(gained);
     setPhase('done');
+    if (acc >= PASS) celebrate({ title: pick({ fr: 'Leçon réussie', ar: 'نَجَحْتَ', en: 'Lesson passed' }), sub: `+${gained} XP`, icon: 'trophy' });
   };
 
   if (phase === 'done') {
@@ -86,7 +92,9 @@ export default function Drill() {
     return (
       <Screen>
         <View style={{ alignItems: 'center', gap: 6, marginTop: 24 }}>
-          <Ionicons name={passed ? 'trophy' : 'refresh-circle'} size={64} color={passed ? p.accent : p.warning} />
+          <Pop delay={120}>
+            <Ionicons name={passed ? 'trophy' : 'refresh-circle'} size={64} color={passed ? p.accent : p.warning} accessibilityElementsHidden importantForAccessibility="no" />
+          </Pop>
           <AR size={30} center weight="700">{passed ? 'أَحْسَنْتَ!' : 'حَاوِلْ مَرَّةً أُخْرَى'}</AR>
           <T v="h2" center>
             {passed ? pick({ fr: 'Leçon réussie', ar: 'نَجَحْتَ', en: 'Lesson passed' }) : pick({ fr: 'Encore un essai ?', ar: 'مَرَّةً أُخْرَى؟', en: 'One more try?' })}
