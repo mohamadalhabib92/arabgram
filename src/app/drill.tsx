@@ -8,6 +8,7 @@ import { LESSON_BY_ID } from '@/data/curriculum';
 import { buildDrill, makeQuestion, type Question } from '@/lib/drill';
 import { useI18n } from '@/lib/i18n';
 import { haptic } from '@/kit/haptics';
+import { announce } from '@/kit/a11y';
 import { Pop, useCelebrate } from '@/kit/premium';
 import { PASS, addXp, dueItems, gradeItem, recordLesson, store } from '@/state';
 
@@ -59,6 +60,7 @@ export default function Drill() {
     setPhase('feedback');
     if (ok) haptic.success();
     else haptic.warning();
+    announce(ok ? t('correct') : `${t('wrong')} — ${t('answer')} : ${q.answer}`);
     if (!q.retry) {
       gradeItem(q.item.id, ok);
       if (ok) setFirstOk((n) => n + 1);

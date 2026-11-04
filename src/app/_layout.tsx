@@ -6,6 +6,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ThemeProvider } from '@/kit/theme';
 import { BootGate, OfflineBadge, ToastProvider } from '@/kit/ui';
 import { DelightProvider } from '@/kit/premium';
+import { hydrateHaptics } from '@/kit/haptics';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { OptionalServiceBanner } from '@/components/OptionalServiceBanner';
 import { makePalette } from '@/theme';
@@ -31,6 +32,8 @@ export default function RootLayout() {
 
   useEffect(() => {
     initCrashReporting();
+    // Préférence « Vibrations » (clé dédiée, activée par défaut).
+    void hydrateHaptics();
   }, []);
 
   useEffect(() => {

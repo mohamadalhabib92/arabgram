@@ -18,6 +18,8 @@ import {
   View,
   ViewStyle,
 } from 'react-native';
+import { announce, useLargeText as useLargeTextBase, useReduceTransparency } from './a11y';
+import { bestInk, ensureContrast, mix, TOAST } from './contrast';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { formatDigits } from './format';
 import { useOnline } from './net';
@@ -43,6 +45,22 @@ export function useReduceMotion(): boolean {
   const t = useTheme();
   const sys = useSystemReduceMotion();
   return t.reduceMotion || sys;
+}
+
+/** Texte agrandi (Dynamic Type × réglage de l’app) : on retire les coupures et on empile. */
+export function useLargeText(): boolean {
+  const t = useTheme();
+  return useLargeTextBase(t.fontScale);
+}
+
+/**
+ * Fond teinté : voile translucide par défaut, couleur pleine équivalente
+ * quand « Réduire la transparence » est activé (iOS).
+ */
+export function useTint(): (c: string, a: number, over?: string) => string {
+  const t = useTheme();
+  const solid = useReduceTransparency();
+  return (c, a, over) => (solid ? mix(c, over ?? t.surface, a) : alpha(c, a));
 }
 
 /** Couleur de marque lisible (AA) pour le texte et les icônes. */
@@ -96,10 +114,11 @@ export function T({
   selectable?: boolean;
 }) {
   const t = useTheme();
+  const large = useLargeText();
   const s = sizes[v];
   return (
     <Text
-      numberOfLines={numberOfLines}
+      numberOfLines={large ? undefined : numberOfLines}
       selectable={selectable}
       style={[
         {
@@ -107,8 +126,10 @@ export function T({
           fontWeight: s.fw,
           lineHeight: s.lh ? s.lh * t.fontScale : undefined,
           color: color ?? (muted ? t.textMuted : t.text),
-          textAlign: center ? 'center' : undefined,
-          letterSpacing: v === 'caption' || v === 'label' ? 0.4 : !t.rtl && (v === 'display' || v === 'h1') ? -0.4 : !t.rtl && v === 'h2' ? -0.2 : undefined,
+          textAlign: center ? 'center' : t.rtl ? 'right' : undefined,
+          writingDirection: t.rtl ? 'rtl' : undefined,
+          // Pas d’espacement des lettres en arabe : il casse les liaisons.
+          letterSpacing: t.rtl ? undefined : v === 'caption' || v === 'label' ? 0.4 : !t.rtl && (v === 'display' || v === 'h1') ? -0.4 : !t.rtl && v === 'h2' ? -0.2 : undefined,
           textTransform: v === 'caption' ? 'uppercase' : undefined,
           fontFamily: v === 'mono' ? Platform.select({ ios: 'Menlo', android: 'monospace', default: 'ui-monospace, Menlo, monospace' }) : undefined,
         },
@@ -290,6 +311,8 @@ export function Button({
         {
           minHeight: small ? TYPE.minTarget : 48,
           paddingHorizontal: small ? 12 : 18,
+          paddingVertical: 8,
+          minWidth: 44,
           borderRadius: t.radius - 2,
           backgroundColor: bg,
           borderWidth: kind === 'secondary' || kind === 'ghost' ? StyleSheet.hairlineWidth : 0,
@@ -307,7 +330,7 @@ export function Button({
       ]}
     >
       {loading ? <ActivityIndicator color={fg} /> : icon ? <Ionicons name={icon} size={small ? 16 : 18} color={fg} /> : null}
-      <Text style={{ color: fg, fontWeight: '700', fontSize: (small ? 13 : 15) * t.fontScale }}>{formatDigits(title, t.digits)}</Text>
+      <Text style={{ color: fg, fontWeight: '700', fontSize: (small ? 13 : 15) * t.fontScale, flexShrink: 1, textAlign: 'center' }}>{formatDigits(title, t.digits)}</Text>
     </Pressable>
     </Animated.View>
   );
@@ -337,7 +360,9 @@ export function IconButton({ icon, onPress, a11y, color, size = 22 }: { icon: Ic
 
 export function Chip({ label, selected, onPress, color, icon }: { label: string; selected?: boolean; onPress?: () => void; color?: string; icon?: IconName }) {
   const t = useTheme();
+  const tint = useTint();
   const c = color ?? t.primary;
+  const ink = ensureContrast(ensureContrast(c, mix(c, t.surface, 0.16), t.text), mix(c, t.bg, 0.16), t.text);
   return (
     <Pressable
       accessibilityRole="button"
@@ -353,37 +378,43 @@ export function Chip({ label, selected, onPress, color, icon }: { label: string;
       }
       style={{
         minHeight: TYPE.minTarget,
+        minWidth: TYPE.minTarget,
+        maxWidth: '100%',
         paddingHorizontal: 12,
+        paddingVertical: 6,
         borderRadius: 18,
         borderWidth: 1,
         borderColor: selected ? c : t.border,
-        backgroundColor: selected ? alpha(c, 0.16) : t.surface,
+        backgroundColor: selected ? tint(c, 0.16) : t.surface,
         flexDirection: 'row',
         alignItems: 'center',
         gap: 6,
       }}
     >
-      {icon ? <Ionicons name={icon} size={14} color={selected ? c : t.textMuted} /> : null}
-      <Text style={{ color: selected ? c : t.text, fontWeight: selected ? '700' : '500', fontSize: 13 * t.fontScale }}>{formatDigits(label, t.digits)}</Text>
+      {icon ? <Ionicons name={icon} size={14} color={selected ? ink : t.textMuted} /> : null}
+      <Text style={{ color: selected ? ink : t.text, fontWeight: selected ? '700' : '500', fontSize: 13 * t.fontScale, flexShrink: 1 }}>{formatDigits(label, t.digits)}</Text>
     </Pressable>
   );
 }
 
 export function Badge({ label, color, icon }: { label: string; color?: string; icon?: IconName }) {
   const t = useTheme();
+  const tint = useTint();
   const c = color ?? t.textMuted;
+  const ink = ensureContrast(c, mix(c, t.surface, 0.15), t.text);
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10, backgroundColor: alpha(c, 0.15) }}>
-      {icon ? <Ionicons name={icon} size={12} color={c} /> : null}
-      <Text style={{ color: c, fontSize: 11 * t.fontScale, fontWeight: '700' }}>{formatDigits(label, t.digits)}</Text>
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10, maxWidth: '100%', backgroundColor: tint(c, 0.15) }}>
+      {icon ? <Ionicons name={icon} size={12} color={ink} /> : null}
+      <Text style={{ color: ink, fontSize: 11 * t.fontScale, fontWeight: '700', flexShrink: 1 }}>{formatDigits(label, t.digits)}</Text>
     </View>
   );
 }
 
 export function Segmented<K extends string>({ options, value, onChange }: { options: { key: K; label: string }[]; value: K; onChange: (k: K) => void }) {
   const t = useTheme();
+  const large = useLargeText();
   return (
-    <View accessibilityRole="tablist" style={{ flexDirection: 'row', backgroundColor: t.surface2, borderRadius: t.radius, padding: 3 }}>
+    <View accessibilityRole="tablist" style={{ flexDirection: large ? 'column' : 'row', backgroundColor: t.surface2, borderRadius: t.radius, padding: 3 }}>
       {options.map((o) => {
         const on = o.key === value;
         return (
@@ -396,9 +427,9 @@ export function Segmented<K extends string>({ options, value, onChange }: { opti
               if (!on) haptic.select();
               onChange(o.key);
             }}
-            style={{ flex: 1, minHeight: 44, borderRadius: t.radius - 3, alignItems: 'center', justifyContent: 'center', backgroundColor: on ? t.surface : 'transparent', ...(on ? elevation(t, 1) : null) }}
+            style={{ flex: large ? undefined : 1, minHeight: 44, paddingHorizontal: 8, paddingVertical: 6, borderRadius: t.radius - 3, alignItems: 'center', justifyContent: 'center', backgroundColor: on ? t.surface : 'transparent', ...(on ? elevation(t, 1) : null) }}
           >
-            <Text style={{ color: on ? t.text : t.textMuted, fontWeight: on ? '700' : '500', fontSize: 13 * t.fontScale }}>{formatDigits(o.label, t.digits)}</Text>
+            <Text style={{ color: on ? t.text : t.textMuted, fontWeight: on ? '700' : '500', fontSize: 13 * t.fontScale, textAlign: 'center' }}>{formatDigits(o.label, t.digits)}</Text>
           </Pressable>
         );
       })}
@@ -417,6 +448,7 @@ export function Field({ label, hint, error, ...props }: TextInputProps & { label
       <TextInput
         placeholderTextColor={t.textMuted}
         accessibilityLabel={label}
+        accessibilityHint={error ?? hint}
         {...props}
         style={[
           {
@@ -435,9 +467,11 @@ export function Field({ label, hint, error, ...props }: TextInputProps & { label
         ]}
       />
       {error ? (
-        <T v="small" color={t.danger}>
-          {error}
-        </T>
+        <View accessibilityLiveRegion="polite">
+          <T v="small" color={t.danger}>
+            {error}
+          </T>
+        </View>
       ) : hint ? (
         <T v="small" muted>
           {hint}
@@ -459,7 +493,7 @@ export function ToggleRow({ label, sub, value, onChange, disabled }: { label: st
           </T>
         ) : null}
       </View>
-      <Switch accessibilityLabel={label} value={value} onValueChange={(v) => {
+      <Switch accessibilityLabel={label} accessibilityHint={sub} accessibilityRole="switch" accessibilityState={{ checked: value, disabled: !!disabled }} value={value} onValueChange={(v) => {
         haptic.select();
         onChange(v);
       }} disabled={disabled} trackColor={{ true: t.primary, false: t.surface2 }} thumbColor="#fff" />
@@ -501,11 +535,12 @@ export function ListItem({ title, sub, right, icon, iconColor, onPress }: { titl
 /* ---------- Feedback ---------- */
 export function Banner({ kind = 'info', title, text, icon, action }: { kind?: 'info' | 'warning' | 'danger' | 'success' | 'demo'; title?: string; text: string; icon?: IconName; action?: React.ReactNode }) {
   const t = useTheme();
+  const tint = useTint();
   const c = { info: t.info, warning: t.warning, danger: t.danger, success: t.success, demo: t.accent }[kind];
   const ic: IconName = icon ?? ({ info: 'information-circle', warning: 'warning', danger: 'alert-circle', success: 'checkmark-circle', demo: 'flask' } as const)[kind];
   return (
-    <View style={{ flexDirection: 'row', gap: 10, padding: 12, borderRadius: t.radius, backgroundColor: alpha(c, 0.12), borderWidth: 1, borderColor: alpha(c, 0.35) }}>
-      <Ionicons name={ic} size={20} color={c} />
+    <View style={{ flexDirection: 'row', gap: 10, padding: 12, borderRadius: t.radius, backgroundColor: tint(c, 0.12, t.bg), borderWidth: 1, borderColor: tint(c, 0.35, t.bg) }}>
+      <Ionicons name={ic} size={20} color={ensureContrast(c, mix(c, t.bg, 0.12), t.text, 3)} />
       <View style={{ flex: 1, gap: 2 }}>
         {title ? <T style={{ fontWeight: '700' }}>{title}</T> : null}
         <T v="small">{text}</T>
@@ -537,11 +572,12 @@ export function EmptyState({ icon = 'sparkles', title, text, action }: { icon?: 
   const reduce = useReduceMotion();
   const enter = useEntrance(reduce);
   const ink = inkOf(t);
+  const tint = useTint();
   return (
     <Animated.View style={[{ alignItems: 'center', paddingVertical: 36, paddingHorizontal: 24, gap: 10 }, enter]}>
-      <View style={{ width: 96, height: 96, borderRadius: 48, backgroundColor: alpha(t.primary, t.dark ? 0.1 : 0.07), alignItems: 'center', justifyContent: 'center', marginBottom: 4 }}>
-        <View style={{ width: 68, height: 68, borderRadius: 34, backgroundColor: alpha(t.primary, t.dark ? 0.2 : 0.14), alignItems: 'center', justifyContent: 'center' }}>
-          <Ionicons name={icon} size={30} color={ink} />
+      <View style={{ width: 96, height: 96, borderRadius: 48, backgroundColor: tint(t.primary, t.dark ? 0.1 : 0.07, t.bg), alignItems: 'center', justifyContent: 'center', marginBottom: 4 }}>
+        <View style={{ width: 68, height: 68, borderRadius: 34, backgroundColor: tint(t.primary, t.dark ? 0.2 : 0.14, t.bg), alignItems: 'center', justifyContent: 'center' }}>
+          <Ionicons name={icon} size={30} color={ensureContrast(ink, mix(t.primary, mix(t.primary, t.bg, t.dark ? 0.1 : 0.07), t.dark ? 0.2 : 0.14), t.text, 3)} />
         </View>
       </View>
       <T v="h2" center>
@@ -623,9 +659,10 @@ export function Stat({ label, value, sub, color, demo }: { label: string; value:
 export function Sheet({ visible, onClose, title, children }: { visible: boolean; onClose: () => void; title: string; children: React.ReactNode }) {
   const t = useTheme();
   const insets = useSafeAreaInsets();
+  const solid = useReduceTransparency();
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable accessibilityLabel="Fermer" onPress={onClose} style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)' }} />
+      <Pressable accessibilityRole="button" accessibilityLabel="Fermer" onPress={onClose} style={{ flex: 1, backgroundColor: solid ? (t.dark ? '#000000' : '#3A3A3C') : 'rgba(0,0,0,0.45)' }} />
       <View style={{ backgroundColor: t.bg, borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '88%', paddingBottom: insets.bottom + 12 }}>
         <View style={{ width: '100%', maxWidth: 820, alignSelf: 'center' }}>
           <Row style={{ padding: 16, paddingBottom: 6, justifyContent: 'space-between' }}>
@@ -650,8 +687,8 @@ function ToastView({ x }: { x: Toast }) {
   const t = useTheme();
   const reduce = useReduceMotion();
   const enter = useEntrance(reduce, 0, 16);
-  const bg = (t.dark ? '#F2F2F2' : '#1D1D1F');
-  const fg = (t.dark ? '#111111' : '#FFFFFF');
+  const bg = (t.dark ? TOAST.dark : TOAST.light).bg;
+  const fg = (t.dark ? TOAST.dark : TOAST.light).fg;
   const tone = x.kind === 'error' ? t.danger : x.kind === 'success' ? t.success : t.info;
   return (
     <Animated.View
@@ -673,9 +710,9 @@ function ToastView({ x }: { x: Toast }) {
       ]}
     >
       <View style={{ width: 26, height: 26, borderRadius: 13, backgroundColor: tone, alignItems: 'center', justifyContent: 'center' }}>
-        <Ionicons name={x.kind === 'error' ? 'alert' : x.kind === 'success' ? 'checkmark' : 'information'} size={16} color="#FFFFFF" />
+        <Ionicons name={x.kind === 'error' ? 'alert' : x.kind === 'success' ? 'checkmark' : 'information'} size={16} color={bestInk(tone)} />
       </View>
-      <Text style={{ color: fg, fontWeight: '600', fontSize: 14 * t.fontScale, flexShrink: 1 }}>formatDigits(x.text, t.digits)</Text>
+      <Text style={{ color: fg, fontWeight: '600', fontSize: 14 * t.fontScale, flexShrink: 1 }}>{formatDigits(x.text, t.digits)}</Text>
     </Animated.View>
   );
 }
@@ -687,7 +724,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     const id = Date.now() + Math.random();
     if (kind === 'success') haptic.success();
     else if (kind === 'error') haptic.error();
-    AccessibilityInfo.announceForAccessibility?.(text);
+    announce(text);
     setToasts((x) => [...x.slice(-2), { id, text, kind }]);
     setTimeout(() => setToasts((x) => x.filter((y) => y.id !== id)), kind === 'error' ? 4200 : 3200);
   }, []);

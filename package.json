@@ -34,7 +34,7 @@
     "web": "expo start --web",
     "build:web": "expo export -p web && node scripts/pwa.mjs",
     "typecheck": "tsc --noEmit",
-    "test": "node --experimental-strip-types --import ./scripts/register-alias.mjs --test src/persist.test.ts",
+    "test": "node --experimental-strip-types --import ./scripts/register-alias.mjs --test src/persist.test.ts src/a11y.test.ts && node scripts/a11y-scan.mjs src",
     "serve:web": "node scripts/serve.mjs"
   },
   "private": true

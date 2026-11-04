@@ -5,11 +5,13 @@ import { useTheme } from '@/kit/theme';
 import { Banner, Button, Card, Header, ListItem, Row, Screen, Section, Segmented, Sheet, T, ToggleRow, useToast } from '@/kit/ui';
 import { AR, useArabicVoice } from '@/components/common';
 import { exportText } from '@/kit/files';
+import { haptic, setHapticsEnabled, useHapticsEnabled } from '@/kit/haptics';
 import { useI18n } from '@/lib/i18n';
 import { showTutorScreen } from '@/config';
 import { DEFAULT_SETTINGS, setSettings, store, type Gloss, type Settings as S, type UiLang } from '@/state';
 
 export default function SettingsTab() {
+  const vibrations = useHapticsEnabled();
   const p = useTheme();
   const { t, pick } = useI18n();
   const toast = useToast();
@@ -85,6 +87,15 @@ export default function SettingsTab() {
           <Segmented options={arOpts} value={near(st.arScale, arOpts)} onChange={(k) => setSettings({ arScale: +k })} />
           <AR size={26} center>بِسْمِ اللّٰهِ — السَّلَامُ عَلَيْكُمْ</AR>
           <ToggleRow label={pick({ fr: 'Afficher la translittération', ar: 'إِظْهَارُ النَّقْحَرَة', en: 'Show transliteration' })} value={st.showTranslit} onChange={(showTranslit) => setSettings({ showTranslit })} />
+          <ToggleRow
+            label={pick({ fr: 'Vibrations', ar: 'الاِهْتِزَاز', en: 'Vibrations' })}
+            sub={pick({ fr: 'Retour tactile lors des réponses et des actions.', ar: 'اِهْتِزَازٌ خَفِيفٌ عِنْدَ الإِجَابَة', en: 'Haptic feedback on answers and actions.' })}
+            value={vibrations}
+            onChange={(on) => {
+              setHapticsEnabled(on);
+              if (on) haptic.select();
+            }}
+          />
           <ToggleRow label={pick({ fr: 'Réduire les animations', ar: 'تَقْلِيلُ الحَرَكَة', en: 'Reduce motion' })} value={st.reduceMotion} onChange={(reduceMotion) => setSettings({ reduceMotion })} />
           <ToggleRow label={pick({ fr: 'Course sans chrono', ar: 'سِبَاقٌ دُونَ تَوْقِيت', en: 'Untimed race' })} sub={pick({ fr: 'Pas de limite de temps par mot.', ar: 'بِلَا حَدٍّ زَمَنِيّ', en: 'No time limit per word.' })} value={st.untimedPacer} onChange={(untimedPacer) => setSettings({ untimedPacer })} />
         </Card>
