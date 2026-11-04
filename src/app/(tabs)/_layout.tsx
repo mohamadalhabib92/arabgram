@@ -15,7 +15,7 @@ export default function TabsLayout() {
   const onboarded = store.useSelect((s) => s.onboarded);
   const due = store.useSelect((s) => dueItems(s).length);
   const digits = store.useSelect((s) => s.settings.digits);
-  // Mode Focus : pas de barre d’onglets pendant la session (la barre de session la remplace).
+  // Mode Focus : pas de barre d’onglets pendant la session (on reste dans l’écran Focus ou dans le contenu).
   const focusActive = !!useFocus().data.active;
   if (!onboarded) return <Redirect href="/onboarding" />;
   const icon = (name: React.ComponentProps<typeof Ionicons>['name']) =>

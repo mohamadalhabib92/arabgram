@@ -123,7 +123,7 @@ export function LicenseTag({ id, compact }: { id: LicenseId; compact?: boolean }
   );
 }
 
-export function BackHeader({ title, subtitle, right }: { title: string; subtitle?: string; right?: React.ReactNode }) {
+export function BackHeader({ title, subtitle, right, hideBack }: { title: string; subtitle?: string; right?: React.ReactNode; hideBack?: boolean }) {
   const { lang, t } = useI18n();
   return (
     <Header
@@ -131,7 +131,7 @@ export function BackHeader({ title, subtitle, right }: { title: string; subtitle
       subtitle={subtitle}
       right={right}
       left={
-        <IconButton
+        hideBack ? undefined : <IconButton
           icon={lang === 'ar' ? 'arrow-forward' : 'arrow-back'}
           a11y={t('back')}
           onPress={() => (router.canGoBack() ? router.back() : router.replace('/learn'))}

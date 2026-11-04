@@ -1,6 +1,7 @@
-import React, { useMemo, useState } from 'react';
-import { View } from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
+import React, { useCallback, useMemo, useState } from 'react';
+import { BackHandler, Platform, View } from 'react-native';
+import { Stack, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { usePreventRemove } from 'expo-router/react-navigation';
 import { useTheme } from '@/kit/theme';
 import { Button, Card, Chip, Ionicons, Row, Screen, Section, T } from '@/kit/ui';
 import { BackHeader } from '@/components/common';
@@ -8,8 +9,8 @@ import { LESSON_BY_ID, playable } from '@/data/curriculum';
 import { dueItems, nextLesson, store, unitUnlocked } from '@/state';
 import { formatDigits } from '@/kit/format';
 import { haptic } from '@/kit/haptics';
-import { FOCUS_DURATIONS, focusTotals, progressOf, remainingMinutes, type FocusRecord, type FocusTarget } from '@/kit/focus';
-import { FocusGuide, FocusRing } from '@/kit/FocusUI';
+import { FOCUS_DURATIONS, focusTotals, formatClock, progressOf, remainingMinutes, remainingMs, type FocusRecord, type FocusTarget } from '@/kit/focus';
+import { FocusEmergency, FocusGuide, FocusRing } from '@/kit/FocusUI';
 import { focus, openFocusTarget, startFocusSession, useFocus, useFocusText, useFocusTheme } from '@/kit/focusApp';
 import { useFocusNow } from '@/kit/focusRuntime';
 
@@ -33,6 +34,17 @@ export default function FocusScreen() {
   const active = snap.data.active;
   const now = useFocusNow(!!active);
   const [minutes, setMinutes] = useState<number>(15);
+
+  // Retour bloqué sur cet écran PENDANT une session seulement : geste iOS (gestureEnabled),
+  // toute fermeture de l’écran (usePreventRemove = écouteur beforeRemove) et bouton Retour Android.
+  usePreventRemove(!!active, () => undefined);
+  useFocusEffect(
+    useCallback(() => {
+      if (Platform.OS !== 'android') return undefined;
+      const sub = BackHandler.addEventListener('hardwareBackPress', () => !!focus.get().data.active);
+      return () => sub.remove();
+    }, []),
+  );
   const [showGuide, setShowGuide] = useState(false);
 
   const titleOf = (id: string) => {
@@ -66,17 +78,27 @@ export default function FocusScreen() {
   };
 
   return (
-    <Screen header={<BackHeader title={tx.screenTitle} subtitle={tx.screenSub} />}>
+    <Screen header={<BackHeader title={tx.screenTitle} subtitle={tx.screenSub} hideBack={!!active} />}>
+      <Stack.Screen options={{ gestureEnabled: !active }} />
       {active ? (
         <Card accent={p.primary}>
           <T v="h2">{tx.activeTitle}</T>
-          <View style={{ alignItems: 'center', paddingVertical: 8 }}>
-            <FocusRing progress={progressOf(active, now)} size={150} theme={ft}>
-              <T v="h1">{num(remainingMinutes(active, now))}</T>
-              <T v="small" muted>{fui.minShort}</T>
+          <View
+            accessible
+            accessibilityRole="progressbar"
+            accessibilityLabel={`${fui.title} — ${fui.ringLabel}`}
+            accessibilityValue={{ min: 0, max: Math.round(active.durationMs / 60000), now: Math.round(active.durationMs / 60000) - remainingMinutes(active, now), text: fui.remaining(remainingMinutes(active, now)) }}
+            style={{ alignItems: 'center', paddingVertical: 8 }}
+          >
+            <FocusRing progress={progressOf(active, now)} size={190} theme={ft}>
+              <T v="h1" style={{ fontVariant: ['tabular-nums'] }}>{formatClock(remainingMs(active, now), num)}</T>
+              <T v="small" muted>{fui.remaining(remainingMinutes(active, now))}</T>
             </FocusRing>
           </View>
-          <Button title={tx.resume} icon="play" full onPress={() => openFocusTarget(active.target, true)} />
+          <T muted>{fui.calm}</T>
+          <T v="small" muted>{tx.locked}</T>
+          <Button title={tx.resume} icon="play" full onPress={() => openFocusTarget(active.target)} />
+          <FocusEmergency theme={ft} s={fui} remainingMin={remainingMinutes(active, now)} onEmergency={(ms) => focus.emergency(ms, true)} />
         </Card>
       ) : (
         <>
@@ -140,7 +162,7 @@ export default function FocusScreen() {
       <Section title={tx.history}>
         {history.length ? (
           <>
-            <T v="small" muted>{tx.totals(totals.sessions, totals.completed, totals.minutes)}</T>
+            <T v="small" muted>{tx.totals(totals.completed, totals.minutes)}</T>
             {[...history].reverse().slice(0, 20).map((r) => (
               <Card key={r.id}>
                 <Row style={{ justifyContent: 'space-between' }}>

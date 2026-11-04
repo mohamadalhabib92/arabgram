@@ -1,14 +1,14 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { View } from 'react-native';
-import { router } from 'expo-router';
+import { router, usePathname } from 'expo-router';
 import { useTheme } from './theme';
 import { mix } from './contrast';
 import { formatDigits } from './format';
 import { useLargeText, useReduceMotion } from './ui';
 import { announce } from './a11y';
-import { progressOf, remainingMinutes, type FocusTarget } from './focus';
+import { FOCUS_PATH, focusNav, formatClock, remainingMs, type FocusTarget } from './focus';
 import { makeFocus, useFocusEngine, useFocusNow } from './focusRuntime';
-import { FocusDock, FocusSuccess, type FocusTheme } from './FocusUI';
+import { FocusNotice, FocusPill, FocusStrip, FocusSuccess, type FocusTheme } from './FocusUI';
 import { focusText } from '@/lib/focusStrings';
 import { store } from '@/state';
 
@@ -44,43 +44,63 @@ export function useFocusText() {
   return useMemo(() => focusText(lang, (n) => formatDigits(n, digits)), [lang, digits]);
 }
 
-/** Ouvre le contenu de la session (leçon, révision) — à l’intérieur du Mode Focus. */
-export function openFocusTarget(target: FocusTarget | undefined, replace = false) {
-  const go = (href: Parameters<typeof router.push>[0]) => (replace ? router.replace(href) : router.push(href));
-  if (target?.kind === 'lesson' && target.id) go({ pathname: '/lesson/[id]', params: { id: target.id } });
-  else if (target?.kind === 'review') go({ pathname: '/drill', params: { mode: 'review' } });
-  else go('/learn');
+/** Contenu accessible pendant une session (leçon, exercices, unité, sources ; Apprendre si le parcours est fini). */
+export const FOCUS_CONTENT = ['/lesson', '/drill', '/unit', '/sources', '/learn'] as const;
+
+/** Ouvre le contenu de la session (leçon, révision) PAR-DESSUS l’écran Focus, qui reste dessous. */
+export function openFocusTarget(target: FocusTarget | undefined) {
+  if (target?.kind === 'lesson' && target.id) router.push({ pathname: '/lesson/[id]', params: { id: target.id } });
+  else if (target?.kind === 'review') router.push({ pathname: '/drill', params: { mode: 'review' } });
+  else router.push('/learn');
 }
 
-/** Depuis l’écran /focus : la session démarre et remplace l’écran de réglage par le contenu. */
+/** Retour au minuteur (pastille, écran hors contenu) : on dépile jusqu’à l’écran Focus. */
+export function backToFocusTimer() {
+  router.dismissTo(FOCUS_PATH);
+}
+
+/** Depuis l’écran /focus : la session démarre et le contenu s’ouvre par-dessus. */
 export function startFocusSession(minutes: number, target: FocusTarget | undefined, startedText: string) {
   focus.start(minutes, target);
   announce(startedText);
-  openFocusTarget(target, true);
+  openFocusTarget(target);
 }
 
 /**
- * Couche racine : moteur (horloge, AppState, écran allumé, toasts en sourdine,
- * Retour Android) + barre de session à la place des onglets + moment de réussite.
+ * Couche racine : moteur (horloge, AppState = pause, écran allumé, toasts en sourdine,
+ * Retour Android) + pastille mm:ss dans le contenu + message de pause au retour
+ * + garde de navigation (hors contenu ⇒ écran Focus) + moment de réussite.
  */
 export function FocusLayer({ children }: { children: React.ReactNode }) {
   const snap = useFocusEngine(focus, () => router.canGoBack());
   const theme = useFocusTheme();
   const { ui } = useFocusText();
+  const pathname = usePathname();
   const a = snap.data.active;
   const now = useFocusNow(!!a);
+  const nav = focusNav(pathname, !!a, FOCUS_CONTENT);
+  const notice = a ? snap.notice : null;
+  const noticeText = notice ? ui.notice(notice.awayMs, notice.interruptions) : '';
+
+  useEffect(() => {
+    if (snap.hydrated && nav.redirect) backToFocusTimer();
+  }, [snap.hydrated, nav.redirect, pathname]);
+
+  useEffect(() => {
+    if (!noticeText) return;
+    announce(noticeText);
+    const id = setTimeout(() => focus.dismissNotice(), 10000);
+    return () => clearTimeout(id);
+  }, [noticeText, notice?.at]);
+
   return (
     <View style={{ flex: 1 }}>
       <View style={{ flex: 1 }}>{children}</View>
-      {a ? (
-        <FocusDock
-          theme={theme}
-          s={ui}
-          progress={progressOf(a, now)}
-          remainingMin={remainingMinutes(a, now)}
-          plannedMin={Math.round(a.durationMs / 60000)}
-          onEmergency={(ms) => focus.emergency(ms, true)}
-        />
+      {a && (nav.showPill || notice) ? (
+        <FocusStrip theme={theme}>
+          {notice ? <FocusNotice theme={theme} s={ui} text={noticeText} onClose={() => focus.dismissNotice()} /> : null}
+          {nav.showPill ? <FocusPill theme={theme} s={ui} clock={formatClock(remainingMs(a, now), ui.num)} onPress={backToFocusTimer} /> : null}
+        </FocusStrip>
       ) : null}
       <FocusSuccess record={snap.finished} theme={theme} s={ui} onClose={() => focus.dismissFinished()} />
     </View>
