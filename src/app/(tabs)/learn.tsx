@@ -9,6 +9,7 @@ import { unitInk } from '@/theme';
 import { showTutorScreen } from '@/config';
 import { useI18n } from '@/lib/i18n';
 import { dueItems, nextLesson, store, streak, today, unitProgress, unitUnlocked } from '@/state';
+import { useFocus, useFocusText } from '@/kit/focusApp';
 
 export default function Learn() {
   const p = useTheme();
@@ -22,6 +23,8 @@ export default function Learn() {
   const goal = s.settings.dailyGoal;
   const st = streak(s);
   const nextUnit = next ? UNITS.find((u) => u.id === next.unitId) : null;
+  const { screen: ftx } = useFocusText();
+  const focusActive = !!useFocus().data.active;
 
   return (
     <Screen
@@ -63,6 +66,18 @@ export default function Learn() {
       ) : (
         <Banner kind="success" title={pick({ fr: 'Parcours terminé', ar: 'أَحْسَنْتَ!', en: 'Path complete' })} text={pick({ fr: 'Toutes les unités ouvertes sont terminées. Révisez ou lancez la course.', ar: 'رَاجِعْ أَوِ ابْدَأِ السِّبَاقَ', en: 'All open units are done. Review or try the race.' })} />
       )}
+
+      {/* Mode Focus : entrée depuis Apprendre (session de 10 à 30 min). */}
+      <Card onPress={() => router.push('/focus')} a11y={ftx.entryA11y}>
+        <Row gap={12}>
+          <Ionicons name="timer-outline" size={24} color={p.primary} />
+          <View style={{ flex: 1 }}>
+            <T v="label">{focusActive ? ftx.activeTitle : ftx.entryTitle}</T>
+            <T v="small" muted>{focusActive ? ftx.resume : ftx.entryText}</T>
+          </View>
+          <Ionicons name={lang === 'ar' ? 'chevron-back' : 'chevron-forward'} size={18} color={p.textMuted} />
+        </Row>
+      </Card>
 
       {due > 0 ? (
         <Banner

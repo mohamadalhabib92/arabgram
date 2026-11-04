@@ -8,6 +8,8 @@ import { LESSON_BY_ID, UNITS, letterForms, playable } from '@/data/curriculum';
 import { LICENSES } from '@/data/licenses';
 import { useI18n } from '@/lib/i18n';
 import { store, unitUnlocked } from '@/state';
+import { IconButton } from '@/kit/ui';
+import { useFocus, useFocusText } from '@/kit/focusApp';
 
 export default function LessonScreen() {
   const p = useTheme();
@@ -16,6 +18,8 @@ export default function LessonScreen() {
   const s = store.use();
   const gloss = s.settings.gloss;
   const lesson = LESSON_BY_ID[String(id)];
+  const { screen: ftx } = useFocusText();
+  const focusActive = !!useFocus().data.active;
   if (!lesson)
     return (
       <Screen header={<BackHeader title={t('lesson')} />}>
@@ -45,7 +49,13 @@ export default function LessonScreen() {
 
   return (
     <Screen
-      header={<BackHeader title={lang === 'ar' ? lesson.title.ar : lesson.title[gloss]} subtitle={`${t('unit')} ${unit.id} · ${lang === 'ar' ? unit.ar : unit[gloss]}`} />}
+      header={
+        <BackHeader
+          title={lang === 'ar' ? lesson.title.ar : lesson.title[gloss]}
+          subtitle={`${t('unit')} ${unit.id} · ${lang === 'ar' ? unit.ar : unit[gloss]}`}
+          right={focusActive ? undefined : <IconButton icon="timer-outline" a11y={ftx.entryA11y} onPress={() => router.push({ pathname: '/focus', params: { lesson: lesson.id } })} />}
+        />
+      }
       footer={
         <View style={{ padding: 12, borderTopWidth: 1, borderTopColor: p.border, backgroundColor: p.surface }}>
           <View style={{ width: '100%', maxWidth: 820, alignSelf: 'center' }}>

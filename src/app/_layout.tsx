@@ -7,6 +7,7 @@ import { ThemeProvider } from '@/kit/theme';
 import { BootGate, OfflineBadge, ToastProvider } from '@/kit/ui';
 import { DelightProvider } from '@/kit/premium';
 import { hydrateHaptics } from '@/kit/haptics';
+import { FocusLayer, useFocus } from '@/kit/focusApp';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { OptionalServiceBanner } from '@/components/OptionalServiceBanner';
 import { makePalette } from '@/theme';
@@ -19,6 +20,8 @@ export default function RootLayout() {
   const scheme = useColorScheme();
   const dark = settings.theme === 'dark' || (settings.theme === 'system' && scheme === 'dark');
   const rtl = settings.lang === 'ar';
+  // Mode Focus : plein écran (barre d’état masquée) tant qu’une session est active.
+  const focusActive = !!useFocus().data.active;
   const palette = makePalette({
     dark,
     contrast: settings.contrast,
@@ -48,12 +51,14 @@ export default function RootLayout() {
         <ThemeProvider value={palette}>
           <ToastProvider>
             <DelightProvider>
-            <StatusBar style={dark ? 'light' : 'dark'} />
+            <StatusBar style={dark ? 'light' : 'dark'} hidden={focusActive} />
             <View style={{ flex: 1, direction: rtl ? 'rtl' : 'ltr', backgroundColor: palette.bg }}>
               <BootGate hydrate={hydrate} appName="ArabGram · عَرَبْغْرَام" timeoutMs={8000} lang={settings.lang}>
                 <OfflineBadge text={rtl ? 'غَيْرُ مُتَّصِل — المُحْتَوَى مُتَاحٌ مَحَلِّيًّا' : settings.lang === 'en' ? 'Offline — lessons available locally' : 'Hors ligne — leçons disponibles localement'} />
                 <OptionalServiceBanner />
-                <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: palette.bg } }} />
+                <FocusLayer>
+                  <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: palette.bg } }} />
+                </FocusLayer>
               </BootGate>
             </View>
             </DelightProvider>

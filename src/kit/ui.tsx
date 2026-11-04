@@ -25,6 +25,7 @@ import { formatDigits } from './format';
 import { useOnline } from './net';
 import { alpha, useTheme, type Palette } from './theme';
 import { haptic } from './haptics';
+import { toastsMuted } from './quiet';
 import { useEntrance, usePressScale, useSystemReduceMotion } from './motion';
 import { TYPE } from '@/theme';
 
@@ -721,6 +722,8 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
   const insets = useSafeAreaInsets();
   const push = useCallback((text: string, kind: Toast['kind'] = 'info') => {
+    // Mode Focus : toasts en sourdine (ni affichage, ni annonce, ni vibration).
+    if (toastsMuted()) return;
     const id = Date.now() + Math.random();
     if (kind === 'success') haptic.success();
     else if (kind === 'error') haptic.error();
