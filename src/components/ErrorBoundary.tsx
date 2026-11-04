@@ -1,5 +1,5 @@
 import React from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Appearance, Pressable, Text, View } from 'react-native';
 import { reportCrash } from '@/lib/crash';
 import { store } from '@/state';
 
@@ -26,7 +26,7 @@ const COPY = {
 
 /**
  * Repli sans thème : il doit rester lisible même si le ThemeProvider a planté.
- * Couleurs de la palette claire (#FBF7EF, #1E2622, #0E6B5C).
+ * Palette claire ou sombre selon le système (valeurs de theme.ts).
  */
 export class ErrorBoundary extends React.Component<Props, S> {
   state: S = { error: null };
@@ -43,18 +43,21 @@ export class ErrorBoundary extends React.Component<Props, S> {
     if (!this.state.error) return this.props.children;
     const lang = store.get().settings.lang;
     const copy = COPY[lang] ?? COPY.fr;
+    // Palettes claire et sombre de theme.ts, en dur : ce repli ne dépend pas du ThemeProvider.
+    const dark = Appearance.getColorScheme?.() === 'dark';
+    const c = dark ? { bg: '#0F1715', text: '#EEF3EF', btn: '#3FB59E', btnText: '#06231D' } : { bg: '#FBF7EF', text: '#1E2622', btn: '#0E6B5C', btnText: '#FFFFFF' };
     return (
-      <View style={{ flex: 1, backgroundColor: '#FBF7EF', padding: 24, justifyContent: 'center', gap: 14 }}>
+      <View accessibilityRole="alert" style={{ flex: 1, backgroundColor: c.bg, padding: 24, justifyContent: 'center', gap: 14 }}>
         <View style={{ maxWidth: 520, width: '100%', alignSelf: 'center', gap: 14 }}>
-          <Text style={{ fontSize: 22, fontWeight: '800', color: '#1E2622' }}>{copy.title}</Text>
-          <Text style={{ fontSize: 16, lineHeight: 22, color: '#1E2622' }}>{copy.text}</Text>
+          <Text style={{ fontSize: 22, fontWeight: '800', color: c.text }}>{copy.title}</Text>
+          <Text style={{ fontSize: 16, lineHeight: 22, color: c.text }}>{copy.text}</Text>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={copy.retry}
             onPress={() => this.setState({ error: null })}
-            style={{ minHeight: 48, borderRadius: 14, backgroundColor: '#0E6B5C', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18 }}
+            style={{ minHeight: 48, borderRadius: 14, backgroundColor: c.btn, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18 }}
           >
-            <Text style={{ color: '#FFFFFF', fontWeight: '700', fontSize: 16 }}>{copy.retry}</Text>
+            <Text style={{ color: c.btnText, fontWeight: '700', fontSize: 16 }}>{copy.retry}</Text>
           </Pressable>
         </View>
       </View>

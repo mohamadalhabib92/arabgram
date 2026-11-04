@@ -3,9 +3,11 @@ import type { ColorValue } from 'react-native';
 import { Redirect, Tabs } from 'expo-router';
 import { useTheme } from '@/kit/theme';
 import { Ionicons } from '@/kit/ui';
+import { haptic } from '@/kit/haptics';
 import { useI18n } from '@/lib/i18n';
 import { formatDigits } from '@/kit/format';
 import { dueItems, store } from '@/state';
+import { useFocus } from '@/kit/focusApp';
 
 export default function TabsLayout() {
   const p = useTheme();
@@ -13,6 +15,8 @@ export default function TabsLayout() {
   const onboarded = store.useSelect((s) => s.onboarded);
   const due = store.useSelect((s) => dueItems(s).length);
   const digits = store.useSelect((s) => s.settings.digits);
+  // Mode Focus : pas de barre d’onglets pendant la session (on reste dans l’écran Focus ou dans le contenu).
+  const focusActive = !!useFocus().data.active;
   if (!onboarded) return <Redirect href="/onboarding" />;
   const icon = (name: React.ComponentProps<typeof Ionicons>['name']) =>
     function TabIcon({ color, size }: { color: ColorValue; size: number }) {
@@ -20,11 +24,12 @@ export default function TabsLayout() {
     };
   return (
     <Tabs
+      screenListeners={{ tabPress: () => haptic.select() }}
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: p.primary,
         tabBarInactiveTintColor: p.textMuted,
-        tabBarStyle: { backgroundColor: p.surface, borderTopColor: p.border, minHeight: 60 },
+        tabBarStyle: { backgroundColor: p.surface, borderTopColor: p.border, minHeight: 60, elevation: 0, shadowOpacity: 0, ...(focusActive ? { display: 'none' as const } : null) },
         tabBarLabelStyle: { fontSize: 12 * Math.min(p.fontScale, 1.2), fontWeight: '600' },
       }}
     >

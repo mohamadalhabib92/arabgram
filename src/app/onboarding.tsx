@@ -5,6 +5,7 @@ import { alpha, useTheme } from '@/kit/theme';
 import { Banner, Button, Ionicons, Row, Screen, T } from '@/kit/ui';
 import { AR } from '@/components/common';
 import { useI18n } from '@/lib/i18n';
+import { haptic } from '@/kit/haptics';
 import { finishOnboarding, setSettings, type UiLang } from '@/state';
 
 function Choice({ title, sub, selected, onPress, icon }: { title: string; sub?: string; selected: boolean; onPress: () => void; icon?: React.ComponentProps<typeof Ionicons>['name'] }) {
@@ -14,14 +15,17 @@ function Choice({ title, sub, selected, onPress, icon }: { title: string; sub?: 
       accessibilityRole="radio"
       accessibilityState={{ selected }}
       accessibilityLabel={title}
-      onPress={onPress}
+      onPress={() => {
+        if (!selected) haptic.select();
+        onPress();
+      }}
       style={{
         minHeight: 56,
         padding: 14,
         borderRadius: t.radius,
         borderWidth: 2,
         borderColor: selected ? t.primary : t.border,
-        backgroundColor: selected ? alpha(t.primary, 0.08) : t.surface,
+        backgroundColor: selected ? alpha(t.primary, t.dark ? 0.16 : 0.08) : t.surface,
         flexDirection: 'row',
         alignItems: 'center',
         gap: 12,
@@ -48,7 +52,19 @@ export default function Onboarding() {
 
   return (
     <Screen>
-      <View style={{ alignItems: 'center', gap: 4, marginTop: 24 }}>
+      <Row style={{ justifyContent: 'flex-end', marginBottom: -8 }}>
+        <Button
+          kind="ghost"
+          small
+          title={pick({ fr: 'Passer', ar: 'تَخَطَّ', en: 'Skip' })}
+          a11y={pick({ fr: 'Passer l’introduction', ar: 'تَخَطَّ', en: 'Skip the introduction' })}
+          onPress={() => {
+            finishOnboarding({ lang, startUnit: 1, dailyGoal: 50 });
+            router.replace('/learn');
+          }}
+        />
+      </Row>
+      <View style={{ alignItems: 'center', gap: 4, marginTop: 8 }}>
         <View style={{ width: 84, height: 84, borderRadius: 42, backgroundColor: t.primary, alignItems: 'center', justifyContent: 'center' }}>
           <AR size={40} center color={t.primaryText} weight="700">ع</AR>
         </View>
@@ -61,7 +77,7 @@ export default function Onboarding() {
 
       <Row gap={6} style={{ justifyContent: 'center' }}>
         {[0, 1, 2].map((i) => (
-          <View key={i} style={{ width: i === step ? 24 : 8, height: 8, borderRadius: 4, backgroundColor: i <= step ? t.primary : t.border }} />
+          <View key={i} accessibilityElementsHidden importantForAccessibility="no" style={{ width: i === step ? 24 : 8, height: 8, borderRadius: 4, backgroundColor: i <= step ? t.primary : t.border }} />
         ))}
       </Row>
 
