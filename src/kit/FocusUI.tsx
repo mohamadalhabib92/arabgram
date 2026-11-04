@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useRef, useState } from 'react';
-import { AccessibilityActionEvent, Animated, Easing, Modal, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { AccessibilityActionEvent, Animated, Easing, Modal, Pressable, ScrollView, StyleSheet, Text, TextStyle, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { announce } from './a11y';
 import { haptic } from './haptics';
@@ -26,7 +26,13 @@ export type FocusTheme = {
   rtl: boolean;
   reduceMotion: boolean;
   largeText: boolean;
+  /** Optionnel : police de l’app pour un poids donné (sinon police système). */
+  face?: (weight: TextStyle['fontWeight']) => TextStyle;
 };
+
+function faceOf(theme: FocusTheme, w: TextStyle['fontWeight']): TextStyle {
+  return theme.face ? theme.face(w) : {};
+}
 
 export type FocusStrings = {
   title: string;
@@ -152,7 +158,7 @@ function EmergencyHold({ theme, s, onHeld }: { theme: FocusTheme; s: FocusString
       style={{ minHeight: 44, minWidth: 44, borderRadius: 12, borderWidth: 1, borderColor: theme.border, overflow: 'hidden', justifyContent: 'center', paddingHorizontal: 12 }}
     >
       <View pointerEvents="none" style={{ position: 'absolute', top: 0, bottom: 0, [theme.rtl ? 'right' : 'left']: 0, width: `${shown * 100}%`, backgroundColor: theme.danger, opacity: 0.22 }} />
-      <Text style={{ color: theme.text, fontWeight: '600', fontSize: 13 * Math.min(theme.fontScale, 1.4), textAlign: 'center' }}>
+      <Text style={{ color: theme.text, fontWeight: '600', fontSize: 13 * Math.min(theme.fontScale, 1.4), textAlign: 'center' , ...faceOf(theme, '600') }}>
         {held > 0 ? s.holding(left) : s.emergency}
       </Text>
     </Pressable>
@@ -165,13 +171,13 @@ function ConfirmLeave({ visible, theme, s, remainingMin, onStay, onLeave }: { vi
     <Modal visible={visible} transparent animationType={theme.reduceMotion ? 'none' : 'fade'} onRequestClose={onStay}>
       <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
         <View accessibilityViewIsModal style={{ width: '100%', maxWidth: 420, backgroundColor: theme.surface, borderRadius: 20, padding: 20, gap: 12, direction: theme.rtl ? 'rtl' : 'ltr' }}>
-          <Text accessibilityRole="header" style={{ color: theme.text, fontSize: 19 * theme.fontScale, fontWeight: '700', textAlign: theme.rtl ? 'right' : 'left' }}>{s.confirmTitle}</Text>
-          <Text style={{ color: theme.muted, fontSize: 15 * theme.fontScale, lineHeight: 21 * theme.fontScale, textAlign: theme.rtl ? 'right' : 'left' }}>{s.confirmText(remainingMin)}</Text>
+          <Text accessibilityRole="header" style={{ color: theme.text, fontSize: 19 * theme.fontScale, fontWeight: '700', textAlign: theme.rtl ? 'right' : 'left' , ...faceOf(theme, '700') }}>{s.confirmTitle}</Text>
+          <Text style={{ color: theme.muted, fontSize: 15 * theme.fontScale, lineHeight: 21 * theme.fontScale, textAlign: theme.rtl ? 'right' : 'left' , ...faceOf(theme, '400') }}>{s.confirmText(remainingMin)}</Text>
           <Pressable accessibilityRole="button" accessibilityLabel={s.stay} onPress={() => { haptic.tap(); onStay(); }} style={{ minHeight: 48, borderRadius: 12, backgroundColor: theme.accent, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 }}>
-            <Text style={{ color: theme.onAccent, fontWeight: '700', fontSize: 15 * theme.fontScale }}>{s.stay}</Text>
+            <Text style={{ color: theme.onAccent, fontWeight: '700', fontSize: 15 * theme.fontScale , ...faceOf(theme, '700') }}>{s.stay}</Text>
           </Pressable>
           <Pressable accessibilityRole="button" accessibilityLabel={s.leave} onPress={() => { haptic.warning(); onLeave(); }} style={{ minHeight: 48, borderRadius: 12, borderWidth: 1, borderColor: theme.danger, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 }}>
-            <Text style={{ color: theme.danger, fontWeight: '700', fontSize: 15 * theme.fontScale }}>{s.leave}</Text>
+            <Text style={{ color: theme.danger, fontWeight: '700', fontSize: 15 * theme.fontScale , ...faceOf(theme, '700') }}>{s.leave}</Text>
           </Pressable>
         </View>
       </View>
@@ -223,15 +229,15 @@ export function FocusDock({
             accessibilityValue={{ min: 0, max: plannedMin, now: elapsedMin, text: s.remaining(remainingMin) }}
           >
             <FocusRing progress={progress} size={52} theme={theme}>
-              <Text style={{ color: theme.text, fontWeight: '800', fontSize: 15 }} allowFontScaling={false}>{s.num(remainingMin)}</Text>
+              <Text style={{ color: theme.text, fontWeight: '800', fontSize: 15 , ...faceOf(theme, '800') }} allowFontScaling={false}>{s.num(remainingMin)}</Text>
             </FocusRing>
           </View>
           <View style={{ flex: 1, gap: 2 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
               <BreathDot theme={theme} />
-              <Text style={{ color: theme.text, fontWeight: '700', fontSize: 14 * theme.fontScale, textAlign: theme.rtl ? 'right' : 'left' }}>{s.title} · {s.remaining(remainingMin)}</Text>
+              <Text style={{ color: theme.text, fontWeight: '700', fontSize: 14 * theme.fontScale, textAlign: theme.rtl ? 'right' : 'left' , ...faceOf(theme, '700') }}>{s.title} · {s.remaining(remainingMin)}</Text>
             </View>
-            <Text style={{ color: theme.muted, fontSize: 13 * theme.fontScale, lineHeight: 18 * theme.fontScale, textAlign: theme.rtl ? 'right' : 'left' }}>{s.calm}</Text>
+            <Text style={{ color: theme.muted, fontSize: 13 * theme.fontScale, lineHeight: 18 * theme.fontScale, textAlign: theme.rtl ? 'right' : 'left' , ...faceOf(theme, '400') }}>{s.calm}</Text>
           </View>
         </View>
         <EmergencyHold theme={theme} s={s} onHeld={(ms) => setConfirm(ms)} />
@@ -275,10 +281,10 @@ export function FocusSuccess({ record, theme, s, onClose }: { record: FocusRecor
             <FocusRing progress={1} size={ring} theme={theme}>
               <Ionicons name="checkmark" size={Math.round(ring * 0.36)} color={theme.accent} />
             </FocusRing>
-            <Text accessibilityRole="header" style={{ color: theme.text, fontSize: 26 * theme.fontScale, fontWeight: '800', textAlign: 'center' }}>{s.successTitle}</Text>
-            <Text style={{ color: theme.muted, fontSize: 16 * theme.fontScale, lineHeight: 23 * theme.fontScale, textAlign: 'center' }}>{s.successText(record)}</Text>
+            <Text accessibilityRole="header" style={{ color: theme.text, fontSize: 26 * theme.fontScale, fontWeight: '800', textAlign: 'center' , ...faceOf(theme, '800') }}>{s.successTitle}</Text>
+            <Text style={{ color: theme.muted, fontSize: 16 * theme.fontScale, lineHeight: 23 * theme.fontScale, textAlign: 'center' , ...faceOf(theme, '400') }}>{s.successText(record)}</Text>
             <Pressable accessibilityRole="button" accessibilityLabel={s.successButton} onPress={() => { haptic.tap(); onClose(); }} style={{ minHeight: 48, minWidth: 200, borderRadius: 14, backgroundColor: theme.accent, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 20 }}>
-              <Text style={{ color: theme.onAccent, fontWeight: '700', fontSize: 16 * theme.fontScale }}>{s.successButton}</Text>
+              <Text style={{ color: theme.onAccent, fontWeight: '700', fontSize: 16 * theme.fontScale , ...faceOf(theme, '700') }}>{s.successButton}</Text>
             </Pressable>
           </Animated.View>
         </ScrollView>
@@ -295,28 +301,28 @@ export function FocusGuide({ g, theme, onOk }: { g: GuideStrings; theme: FocusTh
   const align = theme.rtl ? 'right' : 'left';
   return (
     <View style={{ gap: 14, direction: theme.rtl ? 'rtl' : 'ltr' }}>
-      <Text accessibilityRole="header" style={{ color: theme.text, fontSize: 17 * theme.fontScale, fontWeight: '700', textAlign: align }}>{g.title}</Text>
+      <Text accessibilityRole="header" style={{ color: theme.text, fontSize: 17 * theme.fontScale, fontWeight: '700', textAlign: align , ...faceOf(theme, '700') }}>{g.title}</Text>
       <View style={{ flexDirection: 'row', gap: 10, alignItems: 'flex-start' }}>
         <Ionicons name="information-circle-outline" size={20} color={theme.accent} />
-        <Text style={{ flex: 1, color: theme.text, fontSize: 14 * theme.fontScale, lineHeight: 20 * theme.fontScale, textAlign: align }}>{g.honest}</Text>
+        <Text style={{ flex: 1, color: theme.text, fontSize: 14 * theme.fontScale, lineHeight: 20 * theme.fontScale, textAlign: align , ...faceOf(theme, '400') }}>{g.honest}</Text>
       </View>
       {g.sections.map((sec) => (
         <View key={sec.title} style={{ gap: 6 }}>
-          <Text accessibilityRole="header" style={{ color: theme.text, fontSize: 15 * theme.fontScale, fontWeight: '700', textAlign: align }}>{sec.title}</Text>
+          <Text accessibilityRole="header" style={{ color: theme.text, fontSize: 15 * theme.fontScale, fontWeight: '700', textAlign: align , ...faceOf(theme, '700') }}>{sec.title}</Text>
           {sec.steps.map((step, i) => (
             <View key={i} style={{ flexDirection: 'row', gap: 8, alignItems: 'flex-start' }}>
               <View style={{ minWidth: 22, height: 22, borderRadius: 11, backgroundColor: theme.track, alignItems: 'center', justifyContent: 'center' }} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-                <Text style={{ color: theme.text, fontSize: 12, fontWeight: '700' }}>{g.num(i + 1)}</Text>
+                <Text style={{ color: theme.text, fontSize: 12, fontWeight: '700' , ...faceOf(theme, '700') }}>{g.num(i + 1)}</Text>
               </View>
-              <Text style={{ flex: 1, color: theme.text, fontSize: 14 * theme.fontScale, lineHeight: 20 * theme.fontScale, textAlign: align }} accessibilityLabel={`${g.num(i + 1)}. ${step}`}>{step}</Text>
+              <Text style={{ flex: 1, color: theme.text, fontSize: 14 * theme.fontScale, lineHeight: 20 * theme.fontScale, textAlign: align , ...faceOf(theme, '400') }} accessibilityLabel={`${g.num(i + 1)}. ${step}`}>{step}</Text>
             </View>
           ))}
         </View>
       ))}
-      <Text style={{ color: theme.muted, fontSize: 12.5 * theme.fontScale, lineHeight: 18 * theme.fontScale, textAlign: align }}>{g.footnote}</Text>
+      <Text style={{ color: theme.muted, fontSize: 12.5 * theme.fontScale, lineHeight: 18 * theme.fontScale, textAlign: align , ...faceOf(theme, '400') }}>{g.footnote}</Text>
       {onOk ? (
         <Pressable accessibilityRole="button" accessibilityLabel={g.ok} onPress={() => { haptic.tap(); onOk(); }} style={{ minHeight: 48, borderRadius: 12, backgroundColor: theme.accent, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 }}>
-          <Text style={{ color: theme.onAccent, fontWeight: '700', fontSize: 15 * theme.fontScale }}>{g.ok}</Text>
+          <Text style={{ color: theme.onAccent, fontWeight: '700', fontSize: 15 * theme.fontScale , ...faceOf(theme, '700') }}>{g.ok}</Text>
         </Pressable>
       ) : null}
     </View>

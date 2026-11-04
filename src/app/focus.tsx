@@ -27,7 +27,7 @@ export default function FocusScreen() {
   const lang = s.settings.lang;
   const digits = s.settings.digits;
   const num = (n: number) => formatDigits(n, digits);
-  const { screen: tx, guide } = useFocusText();
+  const { screen: tx, guide, ui: fui } = useFocusText();
   const ft = useFocusTheme();
   const snap = useFocus();
   const active = snap.data.active;
@@ -60,7 +60,7 @@ export default function FocusScreen() {
 
   const describe = (r: FocusRecord) => {
     const what = r.target?.kind === 'lesson' && r.target.id ? titleOf(r.target.id) : r.target?.kind === 'review' ? tx.review : '';
-    return [what, `${num(Math.round(r.elapsedMs / 60000))}/${num(r.plannedMinutes)} min`, r.outcome === 'completed' ? tx.completed : tx.emergencyOutcome, tx.interruptions(r.interruptions)]
+    return [what, `${num(Math.round(r.elapsedMs / 60000))}/${num(r.plannedMinutes)} ${fui.minShort}`, r.outcome === 'completed' ? tx.completed : tx.emergencyOutcome, tx.interruptions(r.interruptions)]
       .filter(Boolean)
       .join(' · ');
   };
@@ -73,7 +73,7 @@ export default function FocusScreen() {
           <View style={{ alignItems: 'center', paddingVertical: 8 }}>
             <FocusRing progress={progressOf(active, now)} size={150} theme={ft}>
               <T v="h1">{num(remainingMinutes(active, now))}</T>
-              <T v="small" muted>min</T>
+              <T v="small" muted>{fui.minShort}</T>
             </FocusRing>
           </View>
           <Button title={tx.resume} icon="play" full onPress={() => openFocusTarget(active.target, true)} />
@@ -83,7 +83,7 @@ export default function FocusScreen() {
           <Section title={tx.duration}>
             <Row wrap gap={8}>
               {FOCUS_DURATIONS.map((m) => (
-                <Chip key={m} label={`${num(m)} min`} selected={minutes === m} icon="timer-outline" onPress={() => setMinutes(m)} />
+                <Chip key={m} label={`${num(m)} ${fui.minShort}`} selected={minutes === m} icon="timer-outline" onPress={() => setMinutes(m)} />
               ))}
             </Row>
           </Section>
