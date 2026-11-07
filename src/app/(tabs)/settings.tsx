@@ -7,7 +7,8 @@ import { AR, useArabicVoice } from '@/components/common';
 import { exportText } from '@/kit/files';
 import { useI18n } from '@/lib/i18n';
 import { showTutorScreen } from '@/config';
-import { DEFAULT_SETTINGS, setSettings, store, type Gloss, type Settings as S, type UiLang } from '@/state';
+import { RecoveryBanner } from '@/components/RecoveryBanner';
+import { DEFAULT_SETTINGS, exportLearningRecord, setSettings, store, type Gloss, type Settings as S, type UiLang } from '@/state';
 
 export default function SettingsTab() {
   const p = useTheme();
@@ -32,6 +33,7 @@ export default function SettingsTab() {
 
   return (
     <Screen header={<Header title={t('settings')} />}>
+      <RecoveryBanner />
       <Section title={pick({ fr: 'Langue', ar: 'اللُّغَة', en: 'Language' })}>
         <Card>
           <T v="label" muted>{pick({ fr: 'Interface', ar: 'الوَاجِهَة', en: 'Interface' })}</T>
@@ -136,7 +138,7 @@ export default function SettingsTab() {
             icon="download-outline"
             title={pick({ fr: 'Exporter ma progression (JSON)', ar: 'تَصْدِيرُ التَّقَدُّم', en: 'Export my progress (JSON)' })}
             onPress={async () => {
-              await exportText('arabgram-progression.json', JSON.stringify(store.get(), null, 2), 'application/json');
+              await exportText('arabgram-progression.json', JSON.stringify(exportLearningRecord(), null, 2), 'application/json');
               toast(pick({ fr: 'Export prêt', ar: 'تَمَّ التَّصْدِير', en: 'Export ready' }), 'success');
             }}
           />
