@@ -233,8 +233,12 @@ export function createPersistedStore<T extends object>(
           await storage.removeItem(storageKey);
         } catch {
           if (ticket !== epoch) return;
+          // Une suppression refusée ne rend pas la mémoire vide autorisée à écraser
+          // le fichier encore présent. On ne réautorise l’écriture que si un profil
+          // a déjà été adopté (la mémoire n’est pas le état initial non lu).
+          const alreadyAdopted = recovery.status === 'ready';
           recovery = { ...recovery, writeFailed: true };
-          loadSettled = true;
+          loadSettled = alreadyAdopted;
           emit();
           return;
         }

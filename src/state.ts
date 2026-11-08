@@ -117,6 +117,42 @@ export function buildLearningExport(input: {
   };
 }
 
+/**
+ * Vrai seulement si reset() a retiré la clé. Une suppression refusée laisse
+ * writeFailed, ou un raw encore présent : il ne faut pas poser un profil vide.
+ */
+export function shouldRestoreLanguageAfterReset(recovery: PersistRecovery): boolean {
+  return recovery.writeFailed !== true && recovery.status === 'ready' && recovery.raw === null;
+}
+
+/**
+ * Après une demande de suppression : pose le profil minimal seulement si la clé
+ * a disparu. Sinon relit le fichier quand la mémoire ne l’a pas encore adopté.
+ * Aucun JSON n’est affiché ici.
+ */
+export async function afterResetAttempt(
+  persist: {
+    reset: () => Promise<void>;
+    hydrate: () => Promise<void>;
+    recovery: () => PersistRecovery;
+    set: (updater: (prev: State) => State) => void;
+  },
+  keep: { lang: Settings['lang']; gloss: Settings['gloss']; theme: Settings['theme'] },
+): Promise<'cleared' | 'kept'> {
+  await persist.reset();
+  const rec = persist.recovery();
+  if (shouldRestoreLanguageAfterReset(rec)) {
+    persist.set((s) => ({
+      ...s,
+      onboarded: true,
+      settings: { ...DEFAULT_SETTINGS, lang: keep.lang, gloss: keep.gloss, theme: keep.theme },
+    }));
+    return 'cleared';
+  }
+  if (rec.status !== 'ready') await persist.hydrate();
+  return 'kept';
+}
+
 /** Export local : instantané brut + état adopté. Aucun envoi réseau. */
 export function exportLearningRecord(exportedAt = new Date().toISOString()): LearningExport {
   const recovery = store.recovery();

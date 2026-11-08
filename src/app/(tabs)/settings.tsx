@@ -8,7 +8,7 @@ import { exportText } from '@/kit/files';
 import { useI18n } from '@/lib/i18n';
 import { showTutorScreen } from '@/config';
 import { RecoveryBanner } from '@/components/RecoveryBanner';
-import { DEFAULT_SETTINGS, exportLearningRecord, setSettings, store, type Gloss, type Settings as S, type UiLang } from '@/state';
+import { afterResetAttempt, exportLearningRecord, setSettings, store, type Gloss, type Settings as S, type UiLang } from '@/state';
 
 export default function SettingsTab() {
   const p = useTheme();
@@ -158,9 +158,16 @@ export default function SettingsTab() {
             style={{ flex: 1 }}
             onPress={async () => {
               const keep = store.get().settings;
-              await store.reset();
-              store.set((s) => ({ ...s, onboarded: true, settings: { ...DEFAULT_SETTINGS, lang: keep.lang, gloss: keep.gloss, theme: keep.theme } }));
+              const outcome = await afterResetAttempt(store, { lang: keep.lang, gloss: keep.gloss, theme: keep.theme });
               setConfirm(false);
+              if (outcome === 'kept') {
+                toast(pick({
+                  fr: 'La suppression n’a pas abouti. Rien n’a été remplacé sur cet appareil.',
+                  ar: 'لَمْ يَتِمَّ الحَذْفُ. لَمْ يُغَيَّرْ شَيْءٌ عَلَى الجِهَازِ.',
+                  en: 'Deletion did not finish. Nothing on this device was replaced.',
+                }), 'error');
+                return;
+              }
               toast(pick({ fr: 'Progression réinitialisée', ar: 'تَمَّتْ إِعَادَةُ الضَّبْط', en: 'Progress reset' }), 'success');
             }}
           />

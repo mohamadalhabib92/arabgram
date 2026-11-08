@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import { formatDigits } from '@/kit/format';
 import { createPersistedStore, type KvStorage } from '@/kit/store';
 import { inspectLearningSnapshot, isSchedulableCard } from '@/lib/learningSnapshot';
-import { boxCounts, buildLearningExport, dueItems, nextSrsCard, restoreState, type State } from '@/state';
+import { afterResetAttempt, boxCounts, buildLearningExport, dueItems, nextSrsCard, restoreState, shouldRestoreLanguageAfterReset, type State } from '@/state';
 
 /** Profil d’avant le champ `digits` : tout doit revenir, rien n’est vidé. */
 const oldProfile = {
@@ -477,6 +477,195 @@ test('la carte Leitner garde ses clés inconnues et une carte illisible n’est 
   const due = dueItems(state, '2026-11-07');
   equal(due.length, 1);
   equal(due[0]?.id, 'u1l1.1');
+});
+
+/** Profil synthétique : progression, carte, note et import fictif. Aucune donnée réelle. */
+function richProfile() {
+  return {
+    ...oldProfile,
+    notes: { 'u1l1.1': 'note-synthetique' },
+    imports: [{ id: 'import-synthetique', role: 'original' }],
+  };
+}
+
+test('reset avant lecture + removeItem rejeté n’écrit pas l’état vide', async () => {
+  const disk = memory();
+  const raw = JSON.stringify(richProfile());
+  disk.mem.set('demo@v1', raw);
+  let removes = 0;
+  const storage: KvStorage = {
+    getItem: (key) => disk.storage.getItem(key),
+    setItem: (key, value) => disk.storage.setItem(key, value),
+    async removeItem() {
+      removes += 1;
+      throw new Error('remove refused');
+    },
+  };
+  const store = createPersistedStore('demo', base, 1, restoreState, storage);
+  await store.reset();
+  await store.hydrate();
+  await wait(300);
+  equal(removes, 1);
+  equal(disk.writes.length, 0);
+  equal(disk.mem.get('demo@v1'), raw);
+  equal(store.get().xp, 420);
+  equal((store.get() as State & { notes?: { 'u1l1.1': string }; imports?: { id: string }[] }).notes?.['u1l1.1'], 'note-synthetique');
+  equal((store.get() as State & { imports?: { id: string }[] }).imports?.[0]?.id, 'import-synthetique');
+});
+
+test('le geste Réglages ne remplace pas le fichier si removeItem est refusé', async () => {
+  const disk = memory();
+  const raw = JSON.stringify(richProfile());
+  disk.mem.set('demo@v1', raw);
+  const storage: KvStorage = {
+    getItem: (key) => disk.storage.getItem(key),
+    setItem: (key, value) => disk.storage.setItem(key, value),
+    async removeItem() {
+      throw new Error('remove refused');
+    },
+  };
+  const store = createPersistedStore('demo', base, 1, restoreState, storage);
+  const outcome = await afterResetAttempt(store, { lang: 'ar', gloss: 'fr', theme: 'dark' });
+  await wait(300);
+  equal(outcome, 'kept');
+  equal(disk.writes.length, 0);
+  equal(disk.mem.get('demo@v1'), raw);
+  equal(store.get().xp, 420);
+  equal(store.get().settings.contrast, true);
+  equal(store.get().settings.lang, 'ar');
+  equal((store.get() as State & { imports?: { role: string }[] }).imports?.[0]?.role, 'original');
+});
+
+test('un fichier refusé survit à un reset dont removeItem échoue', async () => {
+  const disk = memory();
+  const raw = '{"schemaVersion":2,"imports":[{"id":"import-synthetique"}],"notes":"note-synthetique"}';
+  disk.mem.set('demo@v1', raw);
+  const storage: KvStorage = {
+    getItem: (key) => disk.storage.getItem(key),
+    setItem: (key, value) => disk.storage.setItem(key, value),
+    async removeItem() {
+      throw new Error('remove refused');
+    },
+  };
+  const store = createPersistedStore('demo', base, 1, restoreState, storage);
+  await store.hydrate();
+  equal(store.recovery().status, 'quarantine');
+  const outcome = await afterResetAttempt(store, { lang: 'fr', gloss: 'fr', theme: 'system' });
+  await wait(300);
+  equal(outcome, 'kept');
+  equal(disk.writes.length, 0);
+  equal(disk.mem.get('demo@v1'), raw);
+  equal(store.recovery().status, 'quarantine');
+  equal(store.recovery().raw, raw);
+});
+
+test('reset pendant une lecture, removeItem refusé, le fichier reste', async () => {
+  const disk = memory();
+  const raw = JSON.stringify(richProfile());
+  disk.mem.set('demo@v1', raw);
+  let releaseRead: () => void = () => {};
+  const gate = new Promise<void>((resolve) => {
+    releaseRead = resolve;
+  });
+  let started = false;
+  const storage: KvStorage = {
+    async getItem(key) {
+      if (!started) {
+        started = true;
+        await gate;
+      }
+      return disk.storage.getItem(key);
+    },
+    setItem: (key, value) => disk.storage.setItem(key, value),
+    async removeItem() {
+      throw new Error('remove refused');
+    },
+  };
+  const store = createPersistedStore('demo', base, 1, restoreState, storage);
+  const reading = store.hydrate();
+  await wait(20);
+  const outcome = afterResetAttempt(store, { lang: 'ar', gloss: 'fr', theme: 'dark' });
+  releaseRead();
+  equal(await outcome, 'kept');
+  await reading;
+  await wait(300);
+  equal(disk.writes.length, 0);
+  equal(disk.mem.get('demo@v1'), raw);
+  equal(store.get().xp, 420);
+  equal((store.get() as State & { notes?: { 'u1l1.1': string } }).notes?.['u1l1.1'], 'note-synthetique');
+});
+
+test('après adoption, removeItem refusé ne réécrit pas le profil', async () => {
+  const disk = memory();
+  const raw = JSON.stringify(richProfile());
+  disk.mem.set('demo@v1', raw);
+  const storage: KvStorage = {
+    getItem: (key) => disk.storage.getItem(key),
+    setItem: (key, value) => disk.storage.setItem(key, value),
+    async removeItem() {
+      throw new Error('remove refused');
+    },
+  };
+  const store = createPersistedStore('demo', base, 1, restoreState, storage);
+  await store.hydrate();
+  const outcome = await afterResetAttempt(store, { lang: 'fr', gloss: 'fr', theme: 'light' });
+  await wait(300);
+  equal(outcome, 'kept');
+  equal(disk.writes.length, 0);
+  equal(disk.mem.get('demo@v1'), raw);
+  equal(store.get().xp, 420);
+  equal(store.get().settings.theme, 'dark');
+  equal(store.get().settings.contrast, true);
+  equal((store.get() as State & { notes?: { 'u1l1.1': string } }).notes?.['u1l1.1'], 'note-synthetique');
+});
+
+test('cinquante éditions pendant le chargement se rejouent sur le profil', async () => {
+  const disk = memory();
+  const raw = JSON.stringify(richProfile());
+  disk.mem.set('demo@v1', raw);
+  let release: () => void = () => {};
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const storage: KvStorage = {
+    async getItem(key) {
+      await gate;
+      return disk.storage.getItem(key);
+    },
+    setItem: (key, value) => disk.storage.setItem(key, value),
+    removeItem: (key) => disk.storage.removeItem(key),
+  };
+  const store = createPersistedStore('demo', base, 1, restoreState, storage);
+  const pending = store.hydrate();
+  for (let i = 0; i < 50; i += 1) store.set((s) => ({ ...s, xp: (typeof s.xp === 'number' ? s.xp : 0) + 1 }));
+  release();
+  await pending;
+  await wait(300);
+  const onDisk = JSON.parse(disk.mem.get('demo@v1') as string) as State & { notes: { 'u1l1.1': string }; imports: { id: string }[] };
+  equal(store.get().xp, 470);
+  equal(onDisk.xp, 470);
+  equal(onDisk.notes['u1l1.1'], 'note-synthetique');
+  equal(onDisk.imports[0]?.id, 'import-synthetique');
+  equal(onDisk.srs['u1l1.1']?.box, 3);
+  equal(onDisk.settings.contrast, true);
+});
+
+test('une suppression acceptée retire la clé, le suivi de langue reste un geste séparé', async () => {
+  const disk = memory();
+  disk.mem.set('demo@v1', JSON.stringify(richProfile()));
+  const store = createPersistedStore('demo', base, 1, restoreState, disk.storage);
+  await store.hydrate();
+  const outcome = await afterResetAttempt(store, { lang: 'ar', gloss: 'fr', theme: 'dark' });
+  await wait(300);
+  equal(outcome, 'cleared');
+  equal(shouldRestoreLanguageAfterReset({ status: 'ready', raw: null, writeFailed: true }), false);
+  const onDisk = JSON.parse(disk.mem.get('demo@v1') as string) as State & { imports?: unknown; notes?: unknown };
+  equal(onDisk.xp, 0);
+  equal(onDisk.onboarded, true);
+  equal(onDisk.settings.lang, 'ar');
+  equal(onDisk.settings.theme, 'dark');
+  equal(onDisk.imports, undefined);
+  equal(onDisk.srs['u1l1.1'], undefined);
 });
 
 test('formatDigits ne touche pas aux identifiants', () => {
