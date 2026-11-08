@@ -1,6 +1,7 @@
-import { createPersistedStore } from '@/kit/store';
+import { createPersistedStore, PersistReject, type PersistRecovery } from '@/kit/store';
 import { isoDay } from '@/kit/format';
 import { ALL_ITEMS, ITEM_BY_ID, LESSON_BY_ID, UNITS, playable, type Item, type Lesson } from '@/data/curriculum';
+import { inspectLearningSnapshot, isLessonRecord, isSchedulableCard } from '@/lib/learningSnapshot';
 
 export type UiLang = 'fr' | 'ar' | 'en';
 export type Gloss = 'fr' | 'en';
@@ -66,31 +67,101 @@ const initial = (): State => ({
   tashkilBest: null,
 });
 
-function isRecord(v: unknown): v is Record<string, unknown> {
-  return !!v && typeof v === 'object' && !Array.isArray(v);
+/**
+ * Adoption isolée de `arabgram@v1`.
+ * Profil ancien : champs manquants (ex. `digits`) prennent le défaut, le reste reste.
+ * Champ inconnu : conservé sur l’objet, donc réécrit tel quel au prochain enregistrement.
+ * Schéma futur, document étranger, JSON d’un autre type ou champ au mauvais type :
+ * refus, pour que l’appelant ne réécrive pas le fichier.
+ */
+export function restoreState(saved: unknown, base: State): State {
+  const found = inspectLearningSnapshot(saved, base);
+  if (!found.ok) throw new PersistReject(found.reason, found.detail);
+  return found.state;
+}
+
+export type LearningExport = {
+  kind: 'arabgram-learning-export';
+  exportedAt: string;
+  storageKey: string;
+  notice: string;
+  recovery: { status: PersistRecovery['status']; reason?: string; detail?: string; writeFailed: boolean };
+  /** Octets exacts lus au dernier chargement. Null si la clé était absente ou illisible. */
+  rawSnapshot: string | null;
+  /** Document vivant. Null tant que l’instantané n’est pas adopté : un profil vide n’est pas une sauvegarde. */
+  current: State | null;
+};
+
+const EXPORT_NOTICE =
+  'rawSnapshot = octets exacts du dernier chargement. current = document vivant seulement si ce chargement a été adopté. Si current est null, le fichier local n’a pas été remplacé : ne pas écraser la clé avec un profil vide.';
+
+export function buildLearningExport(input: {
+  exportedAt: string;
+  storageKey: string;
+  recovery: PersistRecovery;
+  current: State | null;
+}): LearningExport {
+  return {
+    kind: 'arabgram-learning-export',
+    exportedAt: input.exportedAt,
+    storageKey: input.storageKey,
+    notice: EXPORT_NOTICE,
+    recovery: {
+      status: input.recovery.status,
+      reason: input.recovery.reason,
+      detail: input.recovery.detail,
+      writeFailed: input.recovery.writeFailed === true,
+    },
+    rawSnapshot: input.recovery.raw,
+    current: input.recovery.status === 'ready' ? input.current : null,
+  };
 }
 
 /**
- * Migration additive sur la clé existante `arabgram@v1` : les nouveaux champs
- * (chiffres, etc.) prennent leur défaut, rien de déjà sauvé n’est effacé.
+ * Vrai seulement si reset() a retiré la clé. Une suppression refusée laisse
+ * writeFailed, ou un raw encore présent : il ne faut pas poser un profil vide.
  */
-export function restoreState(saved: unknown, base: State): State {
-  if (!isRecord(saved)) return base;
-  const s = saved as Partial<State>;
-  const settings = isRecord(s.settings) ? { ...base.settings, ...(s.settings as Partial<Settings>) } : base.settings;
-  const pacerSaved = isRecord(s.pacer) ? s.pacer : null;
-  return {
-    ...base,
-    ...s,
-    settings,
-    srs: isRecord(s.srs) ? (s.srs as State['srs']) : base.srs,
-    lessons: isRecord(s.lessons) ? (s.lessons as State['lessons']) : base.lessons,
-    days: isRecord(s.days) ? (s.days as State['days']) : base.days,
-    pacer: {
-      target: typeof pacerSaved?.target === 'number' ? pacerSaved.target : base.pacer.target,
-      sessions: Array.isArray(pacerSaved?.sessions) ? (pacerSaved.sessions as State['pacer']['sessions']) : base.pacer.sessions,
-    },
-  };
+export function shouldRestoreLanguageAfterReset(recovery: PersistRecovery): boolean {
+  return recovery.writeFailed !== true && recovery.status === 'ready' && recovery.raw === null;
+}
+
+/**
+ * Après une demande de suppression : pose le profil minimal seulement si la clé
+ * a disparu. Sinon relit le fichier quand la mémoire ne l’a pas encore adopté.
+ * Aucun JSON n’est affiché ici.
+ */
+export async function afterResetAttempt(
+  persist: {
+    reset: () => Promise<void>;
+    hydrate: () => Promise<void>;
+    recovery: () => PersistRecovery;
+    set: (updater: (prev: State) => State) => void;
+  },
+  keep: { lang: Settings['lang']; gloss: Settings['gloss']; theme: Settings['theme'] },
+): Promise<'cleared' | 'kept'> {
+  await persist.reset();
+  const rec = persist.recovery();
+  if (shouldRestoreLanguageAfterReset(rec)) {
+    persist.set((s) => ({
+      ...s,
+      onboarded: true,
+      settings: { ...DEFAULT_SETTINGS, lang: keep.lang, gloss: keep.gloss, theme: keep.theme },
+    }));
+    return 'cleared';
+  }
+  if (rec.status !== 'ready') await persist.hydrate();
+  return 'kept';
+}
+
+/** Export local : instantané brut + état adopté. Aucun envoi réseau. */
+export function exportLearningRecord(exportedAt = new Date().toISOString()): LearningExport {
+  const recovery = store.recovery();
+  return buildLearningExport({
+    exportedAt,
+    storageKey: store.key,
+    recovery,
+    current: store.get(),
+  });
 }
 
 export const store = createPersistedStore<State>('arabgram', initial, 1, restoreState);
@@ -113,35 +184,53 @@ export function addDaysIso(day: string, n: number): string {
 export const LEITNER_DAYS = [0, 0, 1, 3, 7, 16];
 export const MAX_BOX = 5;
 
+/** Prochaine carte. Les clés inconnues de la carte précédente sont recopiées. */
+export function nextSrsCard(prev: (SrsCard & Record<string, unknown>) | undefined, ok: boolean, day: string): SrsCard & Record<string, unknown> {
+  const box0 = prev && typeof prev.box === 'number' && Number.isFinite(prev.box) ? Math.trunc(prev.box) : 0;
+  const ok0 = prev && typeof prev.ok === 'number' && Number.isFinite(prev.ok) ? prev.ok : 0;
+  const ko0 = prev && typeof prev.ko === 'number' && Number.isFinite(prev.ko) ? prev.ko : 0;
+  const box = ok ? Math.min(MAX_BOX, Math.max(1, box0 + 1)) : 1;
+  const due = addDaysIso(day, LEITNER_DAYS[box] ?? 0);
+  return { ...(prev ?? {}), box, due, ok: ok0 + (ok ? 1 : 0), ko: ko0 + (ok ? 0 : 1), last: day };
+}
+
 export function gradeItem(itemId: string, ok: boolean) {
   const day = today();
   store.set((s) => {
-    const prev = s.srs[itemId] ?? { box: 0, due: day, ok: 0, ko: 0, last: day };
-    const box = ok ? Math.min(MAX_BOX, Math.max(1, prev.box + 1)) : 1;
-    const due = addDaysIso(day, LEITNER_DAYS[box]);
-    return { ...s, srs: { ...s.srs, [itemId]: { box, due, ok: prev.ok + (ok ? 1 : 0), ko: prev.ko + (ok ? 0 : 1), last: day } } };
+    const prev = s.srs[itemId];
+    if (prev && !isSchedulableCard(prev)) return s;
+    return { ...s, srs: { ...s.srs, [itemId]: nextSrsCard(prev, ok, day) } };
   });
 }
 
 export function dueItems(s: State, day = today()): Item[] {
   return Object.entries(s.srs)
-    .filter(([id, c]) => c.due <= day && ITEM_BY_ID[id])
+    .filter(([id, c]) => isSchedulableCard(c) && c.due <= day && ITEM_BY_ID[id])
     .sort((a, b) => a[1].box - b[1].box || a[1].due.localeCompare(b[1].due))
     .map(([id]) => ITEM_BY_ID[id]);
 }
 
 export function boxCounts(s: State): number[] {
   const counts = [0, 0, 0, 0, 0, 0];
-  for (const c of Object.values(s.srs)) counts[c.box] += 1;
-  counts[0] = ALL_ITEMS.length - Object.keys(s.srs).length;
+  for (const c of Object.values(s.srs)) {
+    if (!isSchedulableCard(c)) continue;
+    const box = Math.trunc(c.box);
+    if (box >= 1 && box <= MAX_BOX) counts[box] += 1;
+  }
+  counts[0] = Math.max(0, ALL_ITEMS.length - Object.keys(s.srs).length);
   return counts;
 }
 
 /* ---------- XP / série ---------- */
 export function addXp(n: number) {
-  if (n <= 0) return;
+  if (!Number.isFinite(n) || n <= 0) return;
   const day = today();
-  store.set((s) => ({ ...s, xp: s.xp + n, days: { ...s.days, [day]: (s.days[day] ?? 0) + n } }));
+  store.set((s) => {
+    if (typeof s.xp !== 'number' || !Number.isFinite(s.xp)) return s;
+    const prev = s.days[day];
+    if (prev !== undefined && (typeof prev !== 'number' || !Number.isFinite(prev))) return s;
+    return { ...s, xp: s.xp + n, days: { ...s.days, [day]: (prev ?? 0) + n } };
+  });
 }
 
 export function streak(s: State): number {
@@ -159,9 +248,22 @@ export function streak(s: State): number {
 export const PASS = 0.6;
 
 export function recordLesson(lessonId: string, acc: number) {
+  if (!Number.isFinite(acc)) return;
   store.set((s) => {
     const prev = s.lessons[lessonId];
-    return { ...s, lessons: { ...s.lessons, [lessonId]: { best: Math.max(prev?.best ?? 0, acc), attempts: (prev?.attempts ?? 0) + 1, last: today() } } };
+    if (prev && !isLessonRecord(prev)) return s;
+    return {
+      ...s,
+      lessons: {
+        ...s.lessons,
+        [lessonId]: {
+          ...(prev ?? {}),
+          best: Math.max(prev?.best ?? 0, acc),
+          attempts: (prev?.attempts ?? 0) + 1,
+          last: today(),
+        },
+      },
+    };
   });
 }
 
@@ -192,12 +294,14 @@ export function nextLesson(s: State): Lesson | null {
 /* ---------- Course « سباق المرشد » ---------- */
 export function recordPacer(sess: PacerSession) {
   store.set((s) => {
-    let target = s.pacer.target;
+    const prev = s.pacer;
+    let target = typeof prev?.target === 'number' && Number.isFinite(prev.target) ? prev.target : 20;
     if (!sess.untimed) {
       if (sess.won && sess.acc >= 0.8) target = Math.min(60, target + 5);
       else if (sess.acc < 0.6) target = Math.max(10, target - 5);
     }
-    return { ...s, pacer: { target, sessions: [sess, ...s.pacer.sessions].slice(0, 50) } };
+    const sessions = Array.isArray(prev?.sessions) ? prev.sessions : [];
+    return { ...s, pacer: { ...prev, target, sessions: [sess, ...sessions].slice(0, 50) } };
   });
 }
 

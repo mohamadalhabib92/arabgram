@@ -17,7 +17,7 @@ export default function Review() {
   const due = dueItems(s);
   const counts = boxCounts(s);
   const upcoming = Object.values(s.srs)
-    .map((c) => c.due)
+    .map((c) => (c && typeof c.due === 'string' ? c.due : ''))
     .filter((d) => d > today())
     .sort()[0];
   const started = Object.keys(s.srs).length;

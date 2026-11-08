@@ -7,7 +7,8 @@ import { AR, useArabicVoice } from '@/components/common';
 import { exportText } from '@/kit/files';
 import { useI18n } from '@/lib/i18n';
 import { showTutorScreen } from '@/config';
-import { DEFAULT_SETTINGS, setSettings, store, type Gloss, type Settings as S, type UiLang } from '@/state';
+import { RecoveryBanner } from '@/components/RecoveryBanner';
+import { afterResetAttempt, exportLearningRecord, setSettings, store, type Gloss, type Settings as S, type UiLang } from '@/state';
 
 export default function SettingsTab() {
   const p = useTheme();
@@ -32,6 +33,7 @@ export default function SettingsTab() {
 
   return (
     <Screen header={<Header title={t('settings')} />}>
+      <RecoveryBanner />
       <Section title={pick({ fr: 'Langue', ar: 'اللُّغَة', en: 'Language' })}>
         <Card>
           <T v="label" muted>{pick({ fr: 'Interface', ar: 'الوَاجِهَة', en: 'Interface' })}</T>
@@ -136,7 +138,7 @@ export default function SettingsTab() {
             icon="download-outline"
             title={pick({ fr: 'Exporter ma progression (JSON)', ar: 'تَصْدِيرُ التَّقَدُّم', en: 'Export my progress (JSON)' })}
             onPress={async () => {
-              await exportText('arabgram-progression.json', JSON.stringify(store.get(), null, 2), 'application/json');
+              await exportText('arabgram-progression.json', JSON.stringify(exportLearningRecord(), null, 2), 'application/json');
               toast(pick({ fr: 'Export prêt', ar: 'تَمَّ التَّصْدِير', en: 'Export ready' }), 'success');
             }}
           />
@@ -156,9 +158,16 @@ export default function SettingsTab() {
             style={{ flex: 1 }}
             onPress={async () => {
               const keep = store.get().settings;
-              await store.reset();
-              store.set((s) => ({ ...s, onboarded: true, settings: { ...DEFAULT_SETTINGS, lang: keep.lang, gloss: keep.gloss, theme: keep.theme } }));
+              const outcome = await afterResetAttempt(store, { lang: keep.lang, gloss: keep.gloss, theme: keep.theme });
               setConfirm(false);
+              if (outcome === 'kept') {
+                toast(pick({
+                  fr: 'La suppression n’a pas abouti. Rien n’a été remplacé sur cet appareil.',
+                  ar: 'لَمْ يَتِمَّ الحَذْفُ. لَمْ يُغَيَّرْ شَيْءٌ عَلَى الجِهَازِ.',
+                  en: 'Deletion did not finish. Nothing on this device was replaced.',
+                }), 'error');
+                return;
+              }
               toast(pick({ fr: 'Progression réinitialisée', ar: 'تَمَّتْ إِعَادَةُ الضَّبْط', en: 'Progress reset' }), 'success');
             }}
           />
