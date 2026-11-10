@@ -7,7 +7,7 @@ const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..')
 const dist = path.join(root, 'dist');
 const base = (JSON.parse(fs.readFileSync(path.join(root, 'app.json'), 'utf8')).expo.experiments?.baseUrl || '').replace(/\/$/, '');
 const port = Number(process.env.PORT || 8080);
-const types = { '.html': 'text/html; charset=utf-8', '.js': 'application/javascript', '.json': 'application/json', '.webmanifest': 'application/manifest+json', '.png': 'image/png', '.ico': 'image/x-icon', '.ttf': 'font/ttf', '.css': 'text/css', '.svg': 'image/svg+xml' };
+const types = { '.html': 'text/html; charset=utf-8', '.js': 'application/javascript', '.json': 'application/json', '.webmanifest': 'application/manifest+json', '.png': 'image/png', '.ico': 'image/x-icon', '.ttf': 'font/ttf', '.css': 'text/css', '.svg': 'image/svg+xml', '.pdf': 'application/pdf' };
 
 http
   .createServer((req, res) => {

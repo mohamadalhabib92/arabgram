@@ -5,6 +5,7 @@ import { useTheme } from '@/kit/theme';
 import { Banner, Button, Card, EmptyState, Ionicons, Row, Screen, Section, T } from '@/kit/ui';
 import { AR, BackHeader, LicenseTag } from '@/components/common';
 import { UNITS, playable } from '@/data/curriculum';
+import { chapterForUnit } from '@/data/book';
 import { useI18n } from '@/lib/i18n';
 import { store, unitUnlocked } from '@/state';
 
@@ -29,6 +30,14 @@ export default function UnitScreen() {
       <Card>
         <AR size={34} center weight="700">{unit.ar}</AR>
         <T v="body" muted center>{unit.goal[gloss]}</T>
+        {chapterForUnit(unit.id) ? (
+          <Button
+            kind="secondary"
+            icon="library-outline"
+            title={pick({ fr: 'Lire dans le livre', ar: 'اِقْرَأْ فِي الكِتَاب', en: 'Read in the book' })}
+            onPress={() => router.push({ pathname: '/ebook/[id]', params: { id: chapterForUnit(unit.id)!.id } })}
+          />
+        ) : null}
       </Card>
       {!open ? <Banner kind="warning" icon="lock-closed" text={pick({ fr: 'Unité verrouillée : terminez l’unité précédente (ou « Tout débloquer » dans Réglages).', ar: 'هٰذِهِ الوَحْدَةُ مُقْفَلَةٌ', en: 'Locked unit: finish the previous one (or “Unlock all” in Settings).' })} /> : null}
       <Section title={t('lessons')}>
