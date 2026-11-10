@@ -64,6 +64,12 @@ export default function Learn() {
         <Banner kind="success" title={pick({ fr: 'Parcours terminé', ar: 'أَحْسَنْتَ!', en: 'Path complete' })} text={pick({ fr: 'Toutes les unités ouvertes sont terminées. Révisez ou lancez la course.', ar: 'رَاجِعْ أَوِ ابْدَأِ السِّبَاقَ', en: 'All open units are done. Review or try the race.' })} />
       )}
 
+      <Card accent={p.accent} onPress={() => router.push('/book')} a11y={pick({ fr: 'Ouvrir le livre', ar: 'اِفْتَحِ الكِتَاب', en: 'Open the book' })}>
+        <T v="caption" color={p.accent}>{t('book')}</T>
+        <T v="h3">{pick({ fr: 'Lire l’ebook dans l’app', ar: 'اِقْرَأِ الكِتَابَ فِي التَّطْبِيق', en: 'Read the ebook in the app' })}</T>
+        <T v="small" muted>{pick({ fr: 'Méthode, six chapitres, quiz au toucher. Le PDF se partage vers une liseuse.', ar: 'سِتَّةُ فُصُولٍ وَاِخْتِبَارَات', en: 'Method, six chapters, tap-to-check quizzes. Share the PDF to a reader.' })}</T>
+      </Card>
+
       {due > 0 ? (
         <Banner
           kind="info"

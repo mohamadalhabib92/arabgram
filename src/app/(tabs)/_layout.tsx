@@ -29,6 +29,7 @@ export default function TabsLayout() {
       }}
     >
       <Tabs.Screen name="learn" options={{ title: t('learn'), tabBarAccessibilityLabel: t('learn'), tabBarIcon: icon('book') }} />
+      <Tabs.Screen name="book" options={{ title: t('book'), tabBarAccessibilityLabel: t('book'), tabBarIcon: icon('library') }} />
       <Tabs.Screen name="review" options={{ title: t('review'), tabBarAccessibilityLabel: t('review'), tabBarIcon: icon('albums'), tabBarBadge: due > 0 ? formatDigits(due, digits) : undefined }} />
       <Tabs.Screen name="pacer" options={{ title: t('pacer'), tabBarAccessibilityLabel: t('pacer'), tabBarIcon: icon('speedometer') }} />
       <Tabs.Screen name="progress" options={{ title: t('progress'), tabBarAccessibilityLabel: t('progress'), tabBarIcon: icon('stats-chart') }} />

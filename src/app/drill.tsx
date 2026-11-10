@@ -1,9 +1,10 @@
 import React, { useMemo, useState } from 'react';
-import { Pressable, View } from 'react-native';
+import { View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { alpha, useTheme } from '@/kit/theme';
 import { Banner, Button, Card, EmptyState, IconButton, Ionicons, Progress, Row, Screen, Stat, T } from '@/kit/ui';
 import { AR, AudioButton, LicenseTag, Translit } from '@/components/common';
+import { QuizChoices } from '@/components/QuizChoices';
 import { LESSON_BY_ID } from '@/data/curriculum';
 import { buildDrill, makeQuestion, type Question } from '@/lib/drill';
 import { useI18n } from '@/lib/i18n';
@@ -162,36 +163,15 @@ export default function Drill() {
           </>
         )}
       </Card>
-      <View style={{ gap: 10 }} accessibilityRole="radiogroup">
-        {q.options.map((opt, i) => {
-          const isAns = opt === q.answer;
-          const isPick = opt === picked;
-          const border = phase === 'feedback' && isAns ? p.success : phase === 'feedback' && isPick ? p.danger : p.border;
-          const bg = phase === 'feedback' && isAns ? alpha(p.success, 0.12) : phase === 'feedback' && isPick ? alpha(p.danger, 0.12) : p.surface;
-          return (
-            <Pressable
-              key={opt + i}
-              accessibilityRole="radio"
-              accessibilityLabel={`${pick({ fr: 'Réponse', ar: 'جَوَاب', en: 'Answer' })} ${i + 1} : ${opt}`}
-              accessibilityState={{ selected: isPick, disabled: phase !== 'ask' }}
-              onPress={() => choose(opt)}
-              style={({ pressed }) => ({
-                minHeight: 56,
-                paddingHorizontal: 16,
-                paddingVertical: 8,
-                borderRadius: p.radius,
-                borderWidth: 2,
-                borderColor: border,
-                backgroundColor: bg,
-                justifyContent: 'center',
-                opacity: pressed ? 0.85 : 1,
-              })}
-            >
-              {arabicOptions ? <AR size={26} center>{opt}</AR> : <T v="h3" center>{opt}</T>}
-            </Pressable>
-          );
-        })}
-      </View>
+      <QuizChoices
+        count={q.options.length}
+        pickedIndex={picked == null ? null : q.options.indexOf(picked)}
+        answerIndex={q.options.indexOf(q.answer)}
+        revealed={phase === 'feedback'}
+        onPick={(i) => choose(q.options[i])}
+        labelFor={(i) => `${pick({ fr: 'Réponse', ar: 'جَوَاب', en: 'Answer' })} ${i + 1} : ${q.options[i]}`}
+        renderOption={(i) => (arabicOptions ? <AR size={26} center>{q.options[i]}</AR> : <T v="h3" center>{q.options[i]}</T>)}
+      />
     </Screen>
   );
 }

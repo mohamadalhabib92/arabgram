@@ -5,6 +5,7 @@ import { alpha, useTheme } from '@/kit/theme';
 import { Banner, Button, Card, EmptyState, Row, Screen, T } from '@/kit/ui';
 import { AR, AudioButton, BackHeader, LicenseTag, Translit } from '@/components/common';
 import { LESSON_BY_ID, UNITS, letterForms, playable } from '@/data/curriculum';
+import { chapterForUnit } from '@/data/book';
 import { LICENSES } from '@/data/licenses';
 import { useI18n } from '@/lib/i18n';
 import { store, unitUnlocked } from '@/state';
@@ -62,6 +63,14 @@ export default function LessonScreen() {
     >
       <LicenseTag id={lesson.license} />
       {lesson.tip ? <Banner kind="info" icon="bulb-outline" text={lesson.tip[gloss]} /> : null}
+      {chapterForUnit(unit.id) ? (
+        <Button
+          kind="secondary"
+          icon="library-outline"
+          title={pick({ fr: 'Ce chapitre dans le livre', ar: 'هٰذَا الفَصْلُ فِي الكِتَاب', en: 'This chapter in the book' })}
+          onPress={() => router.push({ pathname: '/ebook/[id]', params: { id: chapterForUnit(unit.id)!.id } })}
+        />
+      ) : null}
       {!open ? <Banner kind="warning" icon="lock-closed" text={pick({ fr: 'Unité verrouillée : lecture possible, exercice après l’unité précédente.', ar: 'الوَحْدَةُ مُقْفَلَةٌ', en: 'Locked unit: you can read, exercise after the previous unit.' })} /> : null}
       {lesson.items.map((it) => {
         const forms = it.kind === 'letter' ? letterForms(it.ar) : null;

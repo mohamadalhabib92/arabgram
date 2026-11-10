@@ -13,7 +13,7 @@ export type SnapshotVerdict =
   | { ok: true; state: State }
   | { ok: false; reason: SnapshotReason; detail?: string };
 
-const KNOWN_TOP = new Set(['onboarded', 'startUnit', 'settings', 'srs', 'lessons', 'xp', 'days', 'pacer', 'tashkilBest']);
+const KNOWN_TOP = new Set(['onboarded', 'startUnit', 'settings', 'srs', 'lessons', 'xp', 'days', 'pacer', 'tashkilBest', 'book']);
 
 const VERSION_KEYS = ['schemaVersion', 'formatVersion', 'envelopeVersion', 'snapshotVersion', 'version', 'schema'] as const;
 
@@ -129,7 +129,30 @@ function invalidPath(saved: Record<string, unknown>): string | null {
       }
     }
   }
+  if ('book' in saved) {
+    if (!isPlain(saved.book)) return 'book';
+    if ('recent' in saved.book && typeof saved.book.recent !== 'string') return 'book.recent';
+    if ('positions' in saved.book) {
+      if (!isPlain(saved.book.positions)) return 'book.positions';
+      for (const [key, value] of Object.entries(saved.book.positions)) {
+        if (typeof value !== 'string') return `book.positions.${key}`;
+      }
+    }
+  }
   return null;
+}
+
+function adoptBook(raw: unknown, base: State['book']): State['book'] {
+  if (!isPlain(raw)) return { positions: { ...base.positions }, ...(base.recent ? { recent: base.recent } : {}) };
+  const positions: Record<string, string> = {};
+  if (isPlain(raw.positions)) {
+    for (const [key, value] of Object.entries(raw.positions)) {
+      if (typeof value === 'string') positions[key] = value;
+    }
+  }
+  const book = { ...raw, positions } as State['book'];
+  if (!('recent' in raw)) delete book.recent;
+  return book;
 }
 
 function adopt(saved: Record<string, unknown>, base: State): State {
@@ -152,6 +175,7 @@ function adopt(saved: Record<string, unknown>, base: State): State {
     days: (isPlain(saved.days) ? { ...saved.days } : {}) as State['days'],
     pacer,
     tashkilBest: 'tashkilBest' in saved ? (saved.tashkilBest as number | null) : base.tashkilBest,
+    book: adoptBook(saved.book, base.book),
   };
   const carried = state as State & Record<string, unknown>;
   for (const key of Object.keys(saved)) {
