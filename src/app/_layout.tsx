@@ -48,7 +48,7 @@ export default function RootLayout() {
               <BootGate hydrate={hydrate} appName="ArabGram · عَرَبْغْرَام" timeoutMs={8000} lang={settings.lang}>
                 <OfflineBadge text={rtl ? 'غَيْرُ مُتَّصِل — المُحْتَوَى مُتَاحٌ مَحَلِّيًّا' : settings.lang === 'en' ? 'Offline — lessons available locally' : 'Hors ligne — leçons disponibles localement'} />
                 <OptionalServiceBanner />
-                <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: palette.bg } }} />
+                <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: palette.bg } }} {...(Platform.isTV ? { initialRouteName: 'tv' as const } : {})} />
               </BootGate>
             </View>
           </ToastProvider>

@@ -44,6 +44,8 @@ export type State = {
   pacer: { target: number; sessions: PacerSession[] };
   tashkilBest: number | null;
   book: BookProgress;
+  /** Niveau suggéré par le test de placement. Absent des profils anciens. */
+  placement: 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | null;
 };
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -73,6 +75,7 @@ const initial = (): State => ({
   pacer: { target: 20, sessions: [] },
   tashkilBest: null,
   book: { positions: {} },
+  placement: null,
 });
 
 /**
@@ -331,4 +334,12 @@ export function setBookPosition(partId: string, sectionId: string) {
     const prev = s.book ?? { positions: {} };
     return { ...s, book: { ...prev, recent: partId, positions: { ...prev.positions, [partId]: sectionId } } };
   });
+}
+
+const PLACEMENT_OK = new Set(['A1', 'A2', 'B1', 'B2', 'C1']);
+
+/** Enregistre le niveau de placement. Ne touche pas aux leçons déjà faites. */
+export function setPlacement(level: State['placement']) {
+  if (level !== null && !PLACEMENT_OK.has(level)) return;
+  store.set((s) => ({ ...s, placement: level }));
 }

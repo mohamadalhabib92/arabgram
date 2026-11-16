@@ -5,7 +5,7 @@ import { alpha, useTheme } from '@/kit/theme';
 import { Banner, Button, Card, EmptyState, IconButton, Ionicons, Progress, Row, Screen, Stat, T } from '@/kit/ui';
 import { AR, AudioButton, LicenseTag, Translit } from '@/components/common';
 import { QuizChoices } from '@/components/QuizChoices';
-import { LESSON_BY_ID } from '@/data/curriculum';
+import { lessonByAnyId } from '@/data/grammar';
 import { buildDrill, makeQuestion, type Question } from '@/lib/drill';
 import { useI18n } from '@/lib/i18n';
 import { PASS, addXp, dueItems, gradeItem, recordLesson, store } from '@/state';
@@ -18,7 +18,7 @@ export default function Drill() {
   const { lang, t, pick } = useI18n();
   const gloss = store.useSelect((s) => s.settings.gloss);
   const showTr = store.useSelect((s) => s.settings.showTranslit);
-  const lesson = params.lesson ? LESSON_BY_ID[String(params.lesson)] : undefined;
+  const lesson = params.lesson ? lessonByAnyId(String(params.lesson)) : undefined;
   const review = params.mode === 'review';
 
   // La file est figée au montage : les notes Leitner ne la modifient pas en cours de route.
@@ -99,7 +99,7 @@ export default function Drill() {
         </Row>
         <Banner kind="info" icon="albums-outline" text={pick({ fr: 'Chaque réponse a mis à jour vos boîtes Leitner : les erreurs reviennent dès aujourd’hui, les réussites plus tard.', ar: 'الأَخْطَاءُ تَعُودُ اليَوْمَ، وَالصَّحِيحُ لَاحِقًا', en: 'Each answer updated your Leitner boxes: mistakes return today, successes later.' })} />
         {lesson && !passed ? <Button title={pick({ fr: 'Recommencer', ar: 'أَعِدْ', en: 'Retry' })} icon="refresh" onPress={() => router.replace({ pathname: '/drill', params: { lesson: lesson.id } })} /> : null}
-        <Button title={t('continue')} kind={lesson && !passed ? 'secondary' : 'primary'} onPress={() => (lesson ? router.replace({ pathname: '/unit/[id]', params: { id: String(lesson.unitId) } }) : router.replace('/review'))} />
+        <Button title={t('continue')} kind={lesson && !passed ? 'secondary' : 'primary'} onPress={() => (lesson && lesson.unitId ? router.replace({ pathname: '/unit/[id]', params: { id: String(lesson.unitId) } }) : lesson ? router.replace('/grammar') : router.replace('/review'))} />
       </Screen>
     );
   }

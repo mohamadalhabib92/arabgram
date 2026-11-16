@@ -64,6 +64,12 @@ export default function Learn() {
         <Banner kind="success" title={pick({ fr: 'Parcours terminé', ar: 'أَحْسَنْتَ!', en: 'Path complete' })} text={pick({ fr: 'Toutes les unités ouvertes sont terminées. Révisez ou lancez la course.', ar: 'رَاجِعْ أَوِ ابْدَأِ السِّبَاقَ', en: 'All open units are done. Review or try the race.' })} />
       )}
 
+      <Card accent={p.primary} onPress={() => router.push('/grammar')} a11y={pick({ fr: 'Séance de grammaire de cinq minutes', ar: 'جَلْسَةُ قَوَاعِد', en: 'Five-minute grammar session' })}>
+        <T v="caption" color={p.primary}>{pick({ fr: '5 minutes', ar: '٥ دَقَائِق', en: '5 minutes' })}</T>
+        <T v="h3">{pick({ fr: 'Une séance courte de grammaire', ar: 'جَلْسَةٌ قَصِيرَةٌ', en: 'A short grammar session' })}</T>
+        <T v="small" muted>{pick({ fr: 'De A1 à C1, une leçon à la fois. La lecture déjà faite reste en place.', ar: 'مِنَ الأَوَّلِ إِلَى الخَامِس. القِرَاءَةُ تَبْقَى', en: 'From A1 to C1, one lesson at a time. Reading you already did stays put.' })}</T>
+      </Card>
+
       <Card accent={p.accent} onPress={() => router.push('/book')} a11y={pick({ fr: 'Ouvrir le livre', ar: 'اِفْتَحِ الكِتَاب', en: 'Open the book' })}>
         <T v="caption" color={p.accent}>{t('book')}</T>
         <T v="h3">{pick({ fr: 'Lire l’ebook dans l’app', ar: 'اِقْرَأِ الكِتَابَ فِي التَّطْبِيق', en: 'Read the ebook in the app' })}</T>

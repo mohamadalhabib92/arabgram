@@ -5,6 +5,7 @@ import { alpha, useTheme } from '@/kit/theme';
 import { Banner, Button, Card, EmptyState, Row, Screen, T } from '@/kit/ui';
 import { AR, AudioButton, BackHeader, LicenseTag, Translit } from '@/components/common';
 import { LESSON_BY_ID, UNITS, letterForms, playable } from '@/data/curriculum';
+import { lessonByAnyId } from '@/data/grammar';
 import { chapterForUnit } from '@/data/book';
 import { LICENSES } from '@/data/licenses';
 import { useI18n } from '@/lib/i18n';
@@ -16,20 +17,20 @@ export default function LessonScreen() {
   const { lang, t, pick } = useI18n();
   const s = store.use();
   const gloss = s.settings.gloss;
-  const lesson = LESSON_BY_ID[String(id)];
+  const lesson = lessonByAnyId(String(id)) ?? LESSON_BY_ID[String(id)];
   if (!lesson)
     return (
       <Screen header={<BackHeader title={t('lesson')} />}>
         <EmptyState icon="help-circle-outline" title={pick({ fr: 'Leçon introuvable', ar: 'الدَّرْسُ غَيْرُ مَوْجُودٍ', en: 'Lesson not found' })} action={<Button title={t('learn')} onPress={() => router.replace('/learn')} />} />
       </Screen>
     );
-  const unit = UNITS.find((u) => u.id === lesson.unitId)!;
-  const open = unitUnlocked(s, unit.id);
+  const unit = lesson.unitId ? UNITS.find((u) => u.id === lesson.unitId) : undefined;
+  const open = unit ? unitUnlocked(s, unit.id) : true;
   const lic = LICENSES[lesson.license];
 
   if (!playable(lesson))
     return (
-      <Screen header={<BackHeader title={lesson.title[gloss]} subtitle={`${t('unit')} ${unit.id}`} />}>
+      <Screen header={<BackHeader title={lesson.title[gloss]} subtitle={unit ? `${t('unit')} ${unit.id}` : pick({ fr: 'Grammaire', ar: 'قَوَاعِد', en: 'Grammar' })} />}>
         <Banner kind="warning" icon="alert-circle" title={lic.short[lang]} text={lic.detail[gloss]} />
         <Card>
           <T v="h3">{pick({ fr: 'Comment remplir cet emplacement', ar: 'كَيْفَ تَمْلَأُ هٰذَا المَكَانَ', en: 'How to fill this slot' })}</T>
@@ -46,7 +47,7 @@ export default function LessonScreen() {
 
   return (
     <Screen
-      header={<BackHeader title={lang === 'ar' ? lesson.title.ar : lesson.title[gloss]} subtitle={`${t('unit')} ${unit.id} · ${lang === 'ar' ? unit.ar : unit[gloss]}`} />}
+      header={<BackHeader title={lang === 'ar' ? lesson.title.ar : lesson.title[gloss]} subtitle={unit ? `${t('unit')} ${unit.id} · ${lang === 'ar' ? unit.ar : unit[gloss]}` : pick({ fr: 'Séance de 5 minutes', ar: 'خَمْسُ دَقَائِق', en: 'A 5-minute session' })} />}
       footer={
         <View style={{ padding: 12, borderTopWidth: 1, borderTopColor: p.border, backgroundColor: p.surface }}>
           <View style={{ width: '100%', maxWidth: 820, alignSelf: 'center' }}>
@@ -63,7 +64,7 @@ export default function LessonScreen() {
     >
       <LicenseTag id={lesson.license} />
       {lesson.tip ? <Banner kind="info" icon="bulb-outline" text={lesson.tip[gloss]} /> : null}
-      {chapterForUnit(unit.id) ? (
+      {unit && chapterForUnit(unit.id) ? (
         <Button
           kind="secondary"
           icon="library-outline"

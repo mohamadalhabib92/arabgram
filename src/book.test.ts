@@ -65,6 +65,7 @@ function base(): State {
     pacer: { target: 20, sessions: [] },
     tashkilBest: null,
     book: { positions: {} },
+    placement: null,
   };
 }
 

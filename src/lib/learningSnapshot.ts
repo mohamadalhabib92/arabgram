@@ -13,7 +13,7 @@ export type SnapshotVerdict =
   | { ok: true; state: State }
   | { ok: false; reason: SnapshotReason; detail?: string };
 
-const KNOWN_TOP = new Set(['onboarded', 'startUnit', 'settings', 'srs', 'lessons', 'xp', 'days', 'pacer', 'tashkilBest', 'book']);
+const KNOWN_TOP = new Set(['onboarded', 'startUnit', 'settings', 'srs', 'lessons', 'xp', 'days', 'pacer', 'tashkilBest', 'book', 'placement']);
 
 const VERSION_KEYS = ['schemaVersion', 'formatVersion', 'envelopeVersion', 'snapshotVersion', 'version', 'schema'] as const;
 
@@ -139,6 +139,9 @@ function invalidPath(saved: Record<string, unknown>): string | null {
       }
     }
   }
+  if ('placement' in saved && saved.placement !== null && saved.placement !== 'A1' && saved.placement !== 'A2' && saved.placement !== 'B1' && saved.placement !== 'B2' && saved.placement !== 'C1') {
+    return 'placement';
+  }
   return null;
 }
 
@@ -176,6 +179,7 @@ function adopt(saved: Record<string, unknown>, base: State): State {
     pacer,
     tashkilBest: 'tashkilBest' in saved ? (saved.tashkilBest as number | null) : base.tashkilBest,
     book: adoptBook(saved.book, base.book),
+    placement: 'placement' in saved ? (saved.placement as State['placement']) : base.placement,
   };
   const carried = state as State & Record<string, unknown>;
   for (const key of Object.keys(saved)) {
