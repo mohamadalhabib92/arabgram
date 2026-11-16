@@ -1,6 +1,8 @@
 import { Platform, Share } from 'react-native';
 import { Asset } from 'expo-asset';
 import * as Sharing from 'expo-sharing';
+import { featureAvailable } from '@/lib/shellMetrics';
+import { isIosAppOnMac } from '@/lib/mac';
 
 const PDF = require('../../assets/ebook/arabgram-ebook.pdf');
 const FILE_NAME = 'arabgram-ebook.pdf';
@@ -12,6 +14,9 @@ export function isShareCancel(error: unknown): boolean {
 
 /** Ouvre la feuille de partage du PDF (reMarkable, Fichiers, AirDrop) ou le télécharge. */
 export async function shareEbookPdf(): Promise<void> {
+  if (!featureAvailable('share', { mac: isIosAppOnMac(), tv: Platform.isTV === true })) {
+    throw new Error('share-unavailable');
+  }
   const asset = Asset.fromModule(PDF);
   if (Platform.OS === 'web') {
     await shareOnWeb(asset.uri);
@@ -20,13 +25,17 @@ export async function shareEbookPdf(): Promise<void> {
   await asset.downloadAsync();
   const uri = asset.localUri ?? asset.uri;
   if (!uri) throw new Error('pdf-missing');
-  if (await Sharing.isAvailableAsync()) {
-    await Sharing.shareAsync(uri, {
-      mimeType: 'application/pdf',
-      UTI: 'com.adobe.pdf',
-      dialogTitle: 'ArabGram — ebook',
-    });
-    return;
+  try {
+    if (await Sharing.isAvailableAsync()) {
+      await Sharing.shareAsync(uri, {
+        mimeType: 'application/pdf',
+        UTI: 'com.adobe.pdf',
+        dialogTitle: 'ArabGram — ebook',
+      });
+      return;
+    }
+  } catch (error) {
+    if (isShareCancel(error)) throw error;
   }
   await Share.share({ url: uri, title: 'ArabGram — ebook' });
 }

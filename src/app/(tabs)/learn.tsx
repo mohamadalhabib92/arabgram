@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View } from 'react-native';
 import { router } from 'expo-router';
 import { alpha, useTheme } from '@/kit/theme';
-import { Banner, Button, Card, Header, Ionicons, Progress, Row, Screen, Section, T, useToast } from '@/kit/ui';
+import { Banner, Button, Card, Grid, Header, Ionicons, Progress, Row, Screen, Section, T, useToast } from '@/kit/ui';
+import { DesktopSearch } from '@/components/DesktopSearch';
 import { AR, Pill } from '@/components/common';
 import { UNITS, playable } from '@/data/curriculum';
 import { unitInk } from '@/theme';
@@ -22,6 +23,12 @@ export default function Learn() {
   const goal = s.settings.dailyGoal;
   const st = streak(s);
   const nextUnit = next ? UNITS.find((u) => u.id === next.unitId) : null;
+  const [query, setQuery] = useState('');
+  const needle = query.trim().toLowerCase();
+  const units = UNITS.filter((u) => {
+    if (!needle) return true;
+    return `${u.id} ${u.ar} ${u.fr} ${u.en}`.toLowerCase().includes(needle);
+  });
 
   return (
     <Screen
@@ -87,10 +94,12 @@ export default function Learn() {
       ) : null}
 
       <Section title={pick({ fr: 'Parcours', ar: 'المَسَار', en: 'Path' })}>
-        {UNITS.map((u, i) => {
+        <DesktopSearch value={query} onChange={setQuery} placeholder={pick({ fr: 'Rechercher une unité', ar: 'اِبْحَثْ', en: 'Search units' })} />
+        <Grid>
+        {units.map((u) => {
           const open = unitUnlocked(s, u.id);
           const prog = unitProgress(s, u.id);
-          const color = unitInk(i, p.dark);
+          const color = unitInk(UNITS.findIndex((unit) => unit.id === u.id), p.dark);
           const nPlay = u.lessons.filter(playable).length;
           const label = `${t('unit')} ${u.id} — ${lang === 'ar' ? u.ar : u[gloss]}${open ? '' : ' — ' + t('locked')}`;
           return (
@@ -122,6 +131,8 @@ export default function Learn() {
             </Card>
           );
         })}
+        </Grid>
+        {needle && units.length === 0 ? <T v="small" muted>{pick({ fr: 'Aucune unité.', ar: 'لَا شَيْء', en: 'No unit.' })}</T> : null}
       </Section>
 
       <Section title={pick({ fr: 'Outils', ar: 'أَدَوَات', en: 'Tools' })}>

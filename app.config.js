@@ -7,8 +7,33 @@
 const PHONE_BUILD = '1';
 const TV_BUILD = '2';
 
+// Capacités qui empêchent l’app iOS d’être proposée sur Mac Apple Silicon.
+const MAC_BLOCKED_CAPABILITIES = ['armv7', 'telephony', 'sms', 'gps', 'magnetometer', 'still-camera', 'video-camera', 'front-facing-camera', 'microphone', 'nfc'];
+
+function applyMacAvailability(config) {
+  config.ios = config.ios || {};
+  config.ios.supportsTablet = true;
+  config.ios.requireFullScreen = false;
+  const info = { ...(config.ios.infoPlist || {}) };
+  const current = Array.isArray(info.UIRequiredDeviceCapabilities) ? info.UIRequiredDeviceCapabilities : [];
+  const caps = current.filter((cap) => typeof cap === 'string' && !MAC_BLOCKED_CAPABILITIES.includes(cap));
+  if (!caps.includes('arm64')) caps.push('arm64');
+  info.UIRequiredDeviceCapabilities = caps;
+  delete info.UIRequiresFullScreen;
+  info.UIApplicationSupportsIndirectInputEvents = true;
+  info['UISupportedInterfaceOrientations~ipad'] = [
+    'UIInterfaceOrientationPortrait',
+    'UIInterfaceOrientationPortraitUpsideDown',
+    'UIInterfaceOrientationLandscapeLeft',
+    'UIInterfaceOrientationLandscapeRight',
+  ];
+  config.ios.infoPlist = info;
+  return config;
+}
+
 module.exports = ({ config }) => {
   if (process.env.EXPO_TV === '1') return withAppleTv(config);
+  applyMacAvailability(config);
   if (process.env.EAS_BUILD && config.experiments) {
     const { baseUrl, ...rest } = config.experiments;
     config.experiments = rest;

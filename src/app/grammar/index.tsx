@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View } from 'react-native';
 import { router } from 'expo-router';
 import { useTheme } from '@/kit/theme';
-import { Button, Card, Header, Progress, Row, Screen, T } from '@/kit/ui';
+import { Button, Card, Grid, Header, Progress, Row, Screen, T } from '@/kit/ui';
+import { DesktopSearch } from '@/components/DesktopSearch';
 import { AR } from '@/components/common';
 import { GRAMMAR_LEVELS, coverageReport, levelStats, levelUnlocked, nextGrammarLesson } from '@/data/grammar';
 import { useI18n } from '@/lib/i18n';
@@ -14,6 +15,9 @@ export default function GrammarHome() {
   const s = store.use();
   const next = nextGrammarLesson(s);
   const report = coverageReport();
+  const [query, setQuery] = useState('');
+  const needle = query.trim().toLowerCase();
+  const levels = GRAMMAR_LEVELS.filter((level) => !needle || `${level.id} ${level.fr} ${level.en} ${level.ar}`.toLowerCase().includes(needle));
 
   return (
     <Screen header={<Header title={pick({ fr: 'Grammaire', ar: 'القَوَاعِد', en: 'Grammar' })} subtitle={pick({ fr: 'A1 → C1 · séances de 5 minutes', ar: 'خَمْسُ دَقَائِق', en: 'A1 → C1 · 5-minute sessions' })} />}>
@@ -37,7 +41,9 @@ export default function GrammarHome() {
       </Row>
       {s.placement ? <T v="small" muted>{pick({ fr: 'Placement enregistré', ar: 'المُسْتَوَى', en: 'Placement saved' })} : {s.placement}</T> : null}
 
-      {GRAMMAR_LEVELS.map((level) => {
+      <DesktopSearch value={query} onChange={setQuery} placeholder={pick({ fr: 'Rechercher un niveau', ar: 'اِبْحَثْ', en: 'Search a level' })} />
+      <Grid>
+      {levels.map((level) => {
         const stats = levelStats(s, level.id);
         const open = levelUnlocked(s, level.id);
         const row = report.find((entry) => entry.level === level.id);
@@ -60,6 +66,7 @@ export default function GrammarHome() {
           </Card>
         );
       })}
+      </Grid>
     </Screen>
   );
 }

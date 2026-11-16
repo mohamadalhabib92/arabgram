@@ -6,6 +6,7 @@ import { Banner, Button, Card, Header, ListItem, Row, Screen, Section, Segmented
 import { AR, useArabicVoice } from '@/components/common';
 import { exportText } from '@/kit/files';
 import { useI18n } from '@/lib/i18n';
+import { isIosAppOnMac } from '@/lib/mac';
 import { showTutorScreen } from '@/config';
 import { RecoveryBanner } from '@/components/RecoveryBanner';
 import { afterResetAttempt, exportLearningRecord, setSettings, store, type Gloss, type Settings as S, type UiLang } from '@/state';
@@ -146,7 +147,7 @@ export default function SettingsTab() {
       </Section>
 
       <Button title={pick({ fr: 'Réinitialiser la progression', ar: 'إِعَادَةُ ضَبْطِ التَّقَدُّم', en: 'Reset progress' })} kind="danger" icon="trash-outline" onPress={() => setConfirm(true)} />
-      <T v="caption" muted center>ArabGram · {Platform.OS} · {pick({ fr: 'données locales uniquement', ar: 'بَيَانَاتٌ مَحَلِّيَّة', en: 'local data only' })}</T>
+      <T v="caption" muted center>ArabGram · {Platform.OS}{isIosAppOnMac() ? ' · Mac' : ''} · {pick({ fr: 'données locales uniquement', ar: 'بَيَانَاتٌ مَحَلِّيَّة', en: 'local data only' })}</T>
 
       <Sheet visible={confirm} onClose={() => setConfirm(false)} title={pick({ fr: 'Tout effacer ?', ar: 'حَذْفُ الكُلّ؟', en: 'Erase everything?' })}>
         <Banner kind="warning" text={pick({ fr: 'XP, série, boîtes de révision et historique de course seront supprimés de cet appareil. Vos réglages de langue sont conservés.', ar: 'سَيُحْذَفُ كُلُّ التَّقَدُّم', en: 'XP, streak, review boxes and race history will be deleted from this device. Language settings are kept.' })} />

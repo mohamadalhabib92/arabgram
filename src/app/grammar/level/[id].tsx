@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useTheme } from '@/kit/theme';
-import { Banner, Button, Card, EmptyState, Screen, T } from '@/kit/ui';
+import { Banner, Button, Card, EmptyState, Grid, Screen, T } from '@/kit/ui';
+import { DesktopSearch } from '@/components/DesktopSearch';
 import { AR, BackHeader } from '@/components/common';
 import { UNITS } from '@/data/curriculum';
 import { levelById, levelStats } from '@/data/grammar';
@@ -15,6 +16,8 @@ export default function GrammarLevel() {
   const p = useTheme();
   const { pick, t } = useI18n();
   const s = store.use();
+  const [query, setQuery] = useState('');
+  const needle = query.trim().toLowerCase();
   if (!level) {
     return (
       <Screen header={<BackHeader title={pick({ fr: 'Niveau', ar: 'مُسْتَوًى', en: 'Level' })} />}>
@@ -36,10 +39,15 @@ export default function GrammarLevel() {
           <T v="small" muted>{pick({ fr: `${UNITS.length} unités, de l’alphabet aux proverbes. Rien n’est recommencé.`, ar: '١١ وَحْدَة', en: `${UNITS.length} units, from the alphabet to proverbs. Nothing starts over.` })}</T>
         </Card>
       ) : null}
-      {level.units.map((u) => (
+      <DesktopSearch value={query} onChange={setQuery} placeholder={pick({ fr: 'Rechercher une séance', ar: 'اِبْحَثْ', en: 'Search a session' })} />
+      {level.units.map((u) => {
+        const lessons = u.lessons.filter((lesson) => !needle || `${lesson.title.fr} ${lesson.title.en} ${lesson.title.ar} ${u.fr}`.toLowerCase().includes(needle));
+        if (!lessons.length) return null;
+        return (
         <View key={u.id} style={{ gap: 8 }}>
           <T v="label" color={p.primary}>{u.fr}</T>
-          {u.lessons.map((lesson) => {
+          <Grid>
+          {lessons.map((lesson) => {
             const ok = lessonDone(s, lesson);
             return (
               <Card key={lesson.id} accent={ok ? p.success : undefined} onPress={() => router.push({ pathname: '/lesson/[id]', params: { id: lesson.id } })} a11y={lesson.title.fr}>
@@ -50,8 +58,10 @@ export default function GrammarLevel() {
               </Card>
             );
           })}
+          </Grid>
         </View>
-      ))}
+        );
+      })}
       {level.units.some((u) => u.lessons.some((l) => l.caution)) ? (
         <Banner kind="warning" icon="alert-circle" text={pick({ fr: 'Les séances « à vérifier » sont des brouillons pédagogiques. Elles ne citent pas un manuel.', ar: 'لِلمُرَاجَعَة', en: 'Sessions marked to be checked are teaching drafts. They do not quote a manual.' })} />
       ) : null}

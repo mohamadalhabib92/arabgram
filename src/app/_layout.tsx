@@ -5,22 +5,30 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ThemeProvider } from '@/kit/theme';
 import { BootGate, OfflineBadge, ToastProvider } from '@/kit/ui';
+import { AppSidebar } from '@/components/AppSidebar';
+import { MacKeyboard } from '@/components/MacKeyboard';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { OptionalServiceBanner } from '@/components/OptionalServiceBanner';
 import { makePalette } from '@/theme';
 import { store } from '@/state';
 import { initCrashReporting } from '@/lib/crash';
 import { loadArabicFont } from '@/lib/fonts';
+import { useShell } from '@/lib/useShell';
+import { usePathname } from 'expo-router';
 
 export default function RootLayout() {
   const settings = store.useSelect((s) => s.settings);
   const scheme = useColorScheme();
   const dark = settings.theme === 'dark' || (settings.theme === 'system' && scheme === 'dark');
   const rtl = settings.lang === 'ar';
+  const shell = useShell();
+  const path = usePathname();
+  const onboarded = store.useSelect((s) => s.onboarded);
+  const sidebar = shell.sidebar && onboarded && !path.startsWith('/onboarding') && !path.startsWith('/tv');
   const palette = makePalette({
     dark,
     contrast: settings.contrast,
-    scale: settings.textScale,
+    scale: settings.textScale * shell.typeBoost,
     digits: settings.digits,
     reduceMotion: settings.reduceMotion,
     rtl,
@@ -48,7 +56,14 @@ export default function RootLayout() {
               <BootGate hydrate={hydrate} appName="ArabGram · عَرَبْغْرَام" timeoutMs={8000} lang={settings.lang}>
                 <OfflineBadge text={rtl ? 'غَيْرُ مُتَّصِل — المُحْتَوَى مُتَاحٌ مَحَلِّيًّا' : settings.lang === 'en' ? 'Offline — lessons available locally' : 'Hors ligne — leçons disponibles localement'} />
                 <OptionalServiceBanner />
-                <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: palette.bg } }} {...(Platform.isTV ? { initialRouteName: 'tv' as const } : {})} />
+                <MacKeyboard>
+                  <View style={{ flex: 1, flexDirection: 'row' }}>
+                    {sidebar ? <AppSidebar /> : null}
+                    <View style={{ flex: 1 }}>
+                      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: palette.bg } }} {...(Platform.isTV ? { initialRouteName: 'tv' as const } : {})} />
+                    </View>
+                  </View>
+                </MacKeyboard>
               </BootGate>
             </View>
           </ToastProvider>

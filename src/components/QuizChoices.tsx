@@ -1,6 +1,7 @@
 import React from 'react';
 import { Pressable, View } from 'react-native';
 import { alpha, useTheme } from '@/kit/theme';
+import { useKeyFocus } from '@/lib/useKeyFocus';
 
 /**
  * Choix du quiz (leçon, révision, livre). La correction se voit au toucher :
@@ -26,36 +27,63 @@ export function QuizChoices({
   const p = useTheme();
   return (
     <View style={{ gap: 10 }} accessibilityRole="radiogroup">
-      {Array.from({ length: count }, (_, index) => {
-        const isAns = index === answerIndex;
-        const isPick = index === pickedIndex;
-        const border = revealed && isAns ? p.success : revealed && isPick ? p.danger : p.border;
-        const bg = revealed && isAns ? alpha(p.success, 0.12) : revealed && isPick ? alpha(p.danger, 0.12) : p.surface;
-        return (
-          <Pressable
-            key={index}
-            accessibilityRole="radio"
-            accessibilityLabel={labelFor(index)}
-            accessibilityState={{ selected: isPick, disabled: revealed }}
-            onPress={() => {
-              if (!revealed) onPick(index);
-            }}
-            style={({ pressed }) => ({
-              minHeight: 56,
-              paddingHorizontal: 16,
-              paddingVertical: 8,
-              borderRadius: p.radius,
-              borderWidth: 2,
-              borderColor: border,
-              backgroundColor: bg,
-              justifyContent: 'center',
-              opacity: pressed && !revealed ? 0.85 : 1,
-            })}
-          >
-            {renderOption(index)}
-          </Pressable>
-        );
-      })}
+      {Array.from({ length: count }, (_, index) => (
+        <Choice
+          key={index}
+          label={labelFor(index)}
+          revealed={revealed}
+          border={revealed && index === answerIndex ? p.success : revealed && index === pickedIndex ? p.danger : p.border}
+          bg={revealed && index === answerIndex ? alpha(p.success, 0.12) : revealed && index === pickedIndex ? alpha(p.danger, 0.12) : p.surface}
+          selected={index === pickedIndex}
+          onPick={() => {
+            if (!revealed) onPick(index);
+          }}
+        >
+          {renderOption(index)}
+        </Choice>
+      ))}
     </View>
+  );
+}
+
+function Choice({
+  label,
+  revealed,
+  border,
+  bg,
+  selected,
+  onPick,
+  children,
+}: {
+  label: string;
+  revealed: boolean;
+  border: string;
+  bg: string;
+  selected: boolean;
+  onPick: () => void;
+  children: React.ReactNode;
+}) {
+  const p = useTheme();
+  const focused = useKeyFocus(!revealed, onPick);
+  return (
+    <Pressable
+      accessibilityRole="radio"
+      accessibilityLabel={label}
+      accessibilityState={{ selected, disabled: revealed }}
+      onPress={onPick}
+      style={(state) => ({
+        minHeight: 56,
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        borderRadius: p.radius,
+        borderWidth: 2,
+        borderColor: focused || Boolean((state as { hovered?: boolean }).hovered) ? p.primary : border,
+        backgroundColor: Boolean((state as { hovered?: boolean }).hovered) && !revealed ? alpha(p.primary, 0.08) : bg,
+        justifyContent: 'center',
+        opacity: state.pressed && !revealed ? 0.85 : 1,
+      })}
+    >
+      {children}
+    </Pressable>
   );
 }

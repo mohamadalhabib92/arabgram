@@ -1,5 +1,7 @@
 import { Platform } from 'react-native';
 import * as Speech from 'expo-speech';
+import { featureAvailable } from '@/lib/shellMetrics';
+import { isIosAppOnMac } from '@/lib/mac';
 
 /**
  * Synthèse vocale de l’appareil (gratuite, sans API payante).
@@ -8,7 +10,7 @@ import * as Speech from 'expo-speech';
 let cache = false;
 
 export async function hasArabicVoice(): Promise<boolean> {
-  if (Platform.isTV) return false;
+  if (!featureAvailable('speech', { mac: isIosAppOnMac(), tv: Platform.isTV === true })) return false;
   if (cache) return true;
   try {
     const voices = await Promise.race([
@@ -24,7 +26,7 @@ export async function hasArabicVoice(): Promise<boolean> {
 }
 
 export function speakArabic(text: string, rate = 0.85) {
-  if (Platform.isTV) return;
+  if (!featureAvailable('speech', { mac: isIosAppOnMac(), tv: Platform.isTV === true })) return;
   try {
     Speech.stop();
     Speech.speak(text, { language: 'ar', rate });

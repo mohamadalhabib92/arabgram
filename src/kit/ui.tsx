@@ -22,6 +22,8 @@ import { formatDigits } from './format';
 import { useOnline } from './net';
 import { alpha, useTheme } from './theme';
 import { TYPE } from '@/theme';
+import { useKeyFocus } from '@/lib/useKeyFocus';
+import { useShell } from '@/lib/useShell';
 
 /** Nombres affichés seulement : formatDigits ne réécrit pas un identifiant (u11l3). */
 function dig(node: React.ReactNode, style: 'latn' | 'arab'): React.ReactNode {
@@ -108,8 +110,9 @@ export function Screen({
 }) {
   const t = useTheme();
   const insets = useSafeAreaInsets();
+  const { contentMax } = useShell();
   const inner = (
-    <View style={{ width: '100%', maxWidth: 820, alignSelf: 'center', padding: padded ? 16 : 0, gap: 14, paddingBottom: 40 }}>{children}</View>
+    <View style={{ width: '100%', maxWidth: contentMax, alignSelf: 'center', padding: padded ? 16 : 0, gap: 14, paddingBottom: 40 }}>{children}</View>
   );
   return (
     <View style={{ flex: 1, backgroundColor: t.bg, paddingTop: insets.top }}>
@@ -127,8 +130,9 @@ export function Screen({
 }
 
 export function Header({ title, subtitle, right, left }: { title: string; subtitle?: string; right?: React.ReactNode; left?: React.ReactNode }) {
+  const { contentMax } = useShell();
   return (
-    <View style={{ width: '100%', maxWidth: 820, alignSelf: 'center', paddingHorizontal: 16, paddingTop: 12, paddingBottom: 4, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+    <View style={{ width: '100%', maxWidth: contentMax, alignSelf: 'center', paddingHorizontal: 16, paddingTop: 12, paddingBottom: 4, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
       {left}
       <View style={{ flex: 1 }}>
         <T v="h1" numberOfLines={1}>
@@ -149,6 +153,40 @@ export function Row({ children, gap = 10, style, wrap }: { children: React.React
   return <View style={[{ flexDirection: 'row', alignItems: 'center', gap, flexWrap: wrap ? 'wrap' : 'nowrap' }, style]}>{children}</View>;
 }
 
+/** Deux colonnes seulement quand la fenêtre est large. Sur iPhone, les enfants restent empilés. */
+export function Grid({ children }: { children: React.ReactNode }) {
+  const { wide } = useShell();
+  if (!wide) return <View style={{ gap: 8 }}>{children}</View>;
+  return (
+    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 14, alignItems: 'stretch' }}>
+      {React.Children.map(children, (child, index) =>
+        child == null || child === false ? null : (
+          <View key={index} style={{ flexBasis: 420, flexGrow: 1, maxWidth: '100%' }}>
+            {child}
+          </View>
+        ),
+      )}
+    </View>
+  );
+}
+
+function pointer(state: { pressed: boolean }): { pressed: boolean; hovered: boolean } {
+  return { pressed: state.pressed, hovered: Boolean((state as { hovered?: boolean }).hovered) };
+}
+
+function pointStyle(state: { pressed: boolean }, color: string, focused: boolean): ViewStyle | null {
+  const hover = pointer(state);
+  if (!hover.hovered && !focused) return null;
+  return {
+    borderColor: color,
+    borderWidth: 2,
+    shadowColor: color,
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 2 },
+  };
+}
+
 export function Card({ children, style, onPress, accent, a11y }: { children: React.ReactNode; style?: StyleProp<ViewStyle>; onPress?: () => void; accent?: string; a11y?: string }) {
   const t = useTheme();
   const base: ViewStyle = {
@@ -161,9 +199,15 @@ export function Card({ children, style, onPress, accent, a11y }: { children: Rea
     borderStartWidth: accent ? 3 : StyleSheet.hairlineWidth,
     borderStartColor: accent ?? t.border,
   };
+  const focused = useKeyFocus(!!onPress, onPress);
   if (onPress)
     return (
-      <Pressable accessibilityRole="button" accessibilityLabel={a11y} onPress={onPress} style={({ pressed }) => [base, { opacity: pressed ? 0.85 : 1 }, style]}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={a11y}
+        onPress={onPress}
+        style={(state) => [base, pointStyle(state, t.primary, focused), { opacity: state.pressed ? 0.85 : 1 }, style]}
+      >
         {children}
       </Pressable>
     );
@@ -217,6 +261,8 @@ export function Button({
   const t = useTheme();
   const bg = { primary: t.primary, secondary: t.surface2, ghost: 'transparent', danger: t.danger, success: t.success }[kind];
   const fg = { primary: t.primaryText, secondary: t.text, ghost: t.primary, danger: t.onDanger, success: t.onSuccess }[kind];
+  const active = !disabled && !loading && !!onPress;
+  const focused = useKeyFocus(active, onPress);
   return (
     <Pressable
       accessibilityRole="button"
@@ -224,7 +270,7 @@ export function Button({
       accessibilityState={{ disabled: !!disabled }}
       disabled={disabled || loading}
       onPress={onPress}
-      style={({ pressed }) => [
+      style={(state) => [
         {
           minHeight: small ? TYPE.minTarget : 48,
           paddingHorizontal: small ? 12 : 18,
@@ -236,9 +282,10 @@ export function Button({
           justifyContent: 'center',
           flexDirection: 'row',
           gap: 8,
-          opacity: disabled ? 0.45 : pressed ? 0.8 : 1,
+          opacity: disabled ? 0.45 : state.pressed ? 0.8 : 1,
           alignSelf: full ? 'stretch' : 'auto',
         },
+        pointStyle(state, t.accent, focused),
         style,
       ]}
     >
@@ -250,13 +297,23 @@ export function Button({
 
 export function IconButton({ icon, onPress, a11y, color, size = 22 }: { icon: IconName; onPress?: () => void; a11y: string; color?: string; size?: number }) {
   const t = useTheme();
+  const focused = useKeyFocus(!!onPress, onPress);
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={a11y}
       onPress={onPress}
       hitSlop={6}
-      style={({ pressed }) => ({ width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: pressed ? t.surface2 : 'transparent' })}
+      style={(state) => ({
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: state.pressed || pointer(state).hovered || focused ? t.surface2 : 'transparent',
+        borderWidth: focused ? 2 : 0,
+        borderColor: t.accent,
+      })}
     >
       <Ionicons name={icon} size={size} color={color ?? t.text} />
     </Pressable>
@@ -266,22 +323,23 @@ export function IconButton({ icon, onPress, a11y, color, size = 22 }: { icon: Ic
 export function Chip({ label, selected, onPress, color, icon }: { label: string; selected?: boolean; onPress?: () => void; color?: string; icon?: IconName }) {
   const t = useTheme();
   const c = color ?? t.primary;
+  const focused = useKeyFocus(!!onPress, onPress);
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityState={{ selected: !!selected }}
       onPress={onPress}
-      style={{
+      style={(state) => ({
         minHeight: TYPE.minTarget,
         paddingHorizontal: 12,
         borderRadius: 18,
-        borderWidth: 1,
-        borderColor: selected ? c : t.border,
-        backgroundColor: selected ? alpha(c, 0.16) : t.surface,
+        borderWidth: focused || pointer(state).hovered ? 2 : 1,
+        borderColor: selected || focused || pointer(state).hovered ? c : t.border,
+        backgroundColor: selected ? alpha(c, 0.16) : pointer(state).hovered ? alpha(c, 0.08) : t.surface,
         flexDirection: 'row',
         alignItems: 'center',
         gap: 6,
-      }}
+      })}
     >
       {icon ? <Ionicons name={icon} size={14} color={selected ? c : t.textMuted} /> : null}
       <Text style={{ color: selected ? c : t.text, fontWeight: selected ? '700' : '500', fontSize: 13 * t.fontScale }}>{formatDigits(label, t.digits)}</Text>
@@ -304,21 +362,34 @@ export function Segmented<K extends string>({ options, value, onChange }: { opti
   const t = useTheme();
   return (
     <View style={{ flexDirection: 'row', backgroundColor: t.surface2, borderRadius: t.radius, padding: 3 }}>
-      {options.map((o) => {
-        const on = o.key === value;
-        return (
-          <Pressable
-            key={o.key}
-            accessibilityRole="button"
-            accessibilityState={{ selected: on }}
-            onPress={() => onChange(o.key)}
-            style={{ flex: 1, minHeight: TYPE.minTarget, borderRadius: t.radius - 3, alignItems: 'center', justifyContent: 'center', backgroundColor: on ? t.surface : 'transparent' }}
-          >
-            <Text style={{ color: on ? t.text : t.textMuted, fontWeight: on ? '700' : '500', fontSize: 13 * t.fontScale }}>{formatDigits(o.label, t.digits)}</Text>
-          </Pressable>
-        );
-      })}
+      {options.map((o) => (
+        <SegmentChoice key={o.key} label={o.label} on={o.key === value} onPress={() => onChange(o.key)} />
+      ))}
     </View>
+  );
+}
+
+function SegmentChoice({ label, on, onPress }: { label: string; on: boolean; onPress: () => void }) {
+  const t = useTheme();
+  const focused = useKeyFocus(true, onPress);
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityState={{ selected: on }}
+      onPress={onPress}
+      style={(state) => ({
+        flex: 1,
+        minHeight: TYPE.minTarget,
+        borderRadius: t.radius - 3,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: on ? t.surface : pointer(state).hovered || focused ? alpha(t.primary, 0.08) : 'transparent',
+        borderWidth: focused ? 2 : 0,
+        borderColor: t.accent,
+      })}
+    >
+      <Text style={{ color: on ? t.text : t.textMuted, fontWeight: on ? '700' : '500', fontSize: 13 * t.fontScale }}>{formatDigits(label, t.digits)}</Text>
+    </Pressable>
   );
 }
 

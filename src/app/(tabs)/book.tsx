@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import { View } from 'react-native';
 import { router } from 'expo-router';
 import { useTheme } from '@/kit/theme';
-import { Card, Header, Row, Screen, Section, T } from '@/kit/ui';
+import { Card, Grid, Header, Row, Screen, Section, T } from '@/kit/ui';
+import { DesktopSearch } from '@/components/DesktopSearch';
 import { PdfButton } from '@/components/BookBlocks';
 import { bookParts, resolveSection, type BookPart } from '@/data/book';
 import { useI18n } from '@/lib/i18n';
@@ -15,6 +16,9 @@ export default function BookIndex() {
   const parts = bookParts();
   const recent = book?.recent ? parts.find((part) => part.id === book.recent) : undefined;
   const recentSection = recent ? recent.sections.find((section) => section.id === book?.positions?.[recent.id]) : undefined;
+  const [query, setQuery] = useState('');
+  const needle = query.trim().toLowerCase();
+  const visible = useMemo(() => (needle ? parts.filter((part) => `${part.title} ${part.kicker} ${part.blurb}`.toLowerCase().includes(needle)) : null), [needle, parts]);
 
   return (
     <Screen
@@ -50,9 +54,17 @@ export default function BookIndex() {
 
       <PdfButton detail={pick({ fr: 'Le même livre en PDF, pour l’envoyer vers une reMarkable ou l’imprimer.', ar: 'نَفْسُ الكِتَابِ بِصِيغَةِ PDF', en: 'The same book as a PDF, to send to a reMarkable or to print.' })} />
 
-      <Shelf title={pick({ fr: 'Avant les chapitres', ar: 'قَبْلَ الفُصُول', en: 'Before the chapters' })} parts={parts.filter((part) => part.group === 'avant')} />
-      <Shelf title={pick({ fr: 'Six chapitres', ar: 'سِتَّةُ فُصُول', en: 'Six chapters' })} parts={parts.filter((part) => part.group === 'chapitre')} numbered />
-      <Shelf title={pick({ fr: 'Récapitulatif', ar: 'الخُلَاصَة', en: 'Back matter' })} parts={parts.filter((part) => part.group === 'fin')} />
+      <DesktopSearch value={query} onChange={setQuery} placeholder={pick({ fr: 'Rechercher dans le livre', ar: 'اِبْحَثْ فِي الكِتَاب', en: 'Search the book' })} />
+
+      {visible ? (
+        <Shelf title={pick({ fr: 'Résultats', ar: 'نَتَائِج', en: 'Results' })} parts={visible} />
+      ) : (
+        <>
+          <Shelf title={pick({ fr: 'Avant les chapitres', ar: 'قَبْلَ الفُصُول', en: 'Before the chapters' })} parts={parts.filter((part) => part.group === 'avant')} />
+          <Shelf title={pick({ fr: 'Six chapitres', ar: 'سِتَّةُ فُصُول', en: 'Six chapters' })} parts={parts.filter((part) => part.group === 'chapitre')} numbered />
+          <Shelf title={pick({ fr: 'Récapitulatif', ar: 'الخُلَاصَة', en: 'Back matter' })} parts={parts.filter((part) => part.group === 'fin')} />
+        </>
+      )}
     </Screen>
   );
 }
@@ -62,6 +74,7 @@ function Shelf({ title, parts, numbered }: { title: string; parts: BookPart[]; n
   const book = store.useSelect((s) => s.book);
   return (
     <Section title={title}>
+      <Grid>
       {parts.map((part, index) => {
         const saved = book?.positions?.[part.id];
         const section = saved ? part.sections.find((entry) => entry.id === saved) : undefined;
@@ -80,6 +93,7 @@ function Shelf({ title, parts, numbered }: { title: string; parts: BookPart[]; n
           </Card>
         );
       })}
+      </Grid>
     </Section>
   );
 }

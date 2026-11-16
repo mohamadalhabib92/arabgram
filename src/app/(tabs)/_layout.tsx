@@ -4,6 +4,7 @@ import { Redirect, Tabs } from 'expo-router';
 import { useTheme } from '@/kit/theme';
 import { Ionicons } from '@/kit/ui';
 import { useI18n } from '@/lib/i18n';
+import { useShell } from '@/lib/useShell';
 import { formatDigits } from '@/kit/format';
 import { dueItems, store } from '@/state';
 
@@ -13,6 +14,7 @@ export default function TabsLayout() {
   const onboarded = store.useSelect((s) => s.onboarded);
   const due = store.useSelect((s) => dueItems(s).length);
   const digits = store.useSelect((s) => s.settings.digits);
+  const { wide } = useShell();
   if (!onboarded) return <Redirect href="/onboarding" />;
   const icon = (name: React.ComponentProps<typeof Ionicons>['name']) =>
     function TabIcon({ color, size }: { color: ColorValue; size: number }) {
@@ -24,7 +26,9 @@ export default function TabsLayout() {
         headerShown: false,
         tabBarActiveTintColor: p.primary,
         tabBarInactiveTintColor: p.textMuted,
-        tabBarStyle: { backgroundColor: p.surface, borderTopColor: p.border, minHeight: 60 },
+        tabBarStyle: wide
+          ? { display: 'none', height: 0 }
+          : { backgroundColor: p.surface, borderTopColor: p.border, minHeight: 60 },
         tabBarLabelStyle: { fontSize: 12 * Math.min(p.fontScale, 1.2), fontWeight: '600' },
       }}
     >
