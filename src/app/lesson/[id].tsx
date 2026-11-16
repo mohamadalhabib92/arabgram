@@ -1,10 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { alpha, useTheme } from '@/kit/theme';
 import { Banner, Button, Card, EmptyState, Row, Screen, T } from '@/kit/ui';
 import { AR, AudioButton, BackHeader, LicenseTag, Translit } from '@/components/common';
 import { LESSON_BY_ID, UNITS, letterForms, playable } from '@/data/curriculum';
+import { GRAMMAR_BY_ID, lessonByAnyId } from '@/data/grammar';
+import { chapterForUnit } from '@/data/book';
 import { LICENSES } from '@/data/licenses';
 import { useI18n } from '@/lib/i18n';
 import { store, unitUnlocked } from '@/state';
@@ -15,20 +17,22 @@ export default function LessonScreen() {
   const { lang, t, pick } = useI18n();
   const s = store.use();
   const gloss = s.settings.gloss;
-  const lesson = LESSON_BY_ID[String(id)];
+  const lesson = lessonByAnyId(String(id)) ?? LESSON_BY_ID[String(id)];
   if (!lesson)
     return (
       <Screen header={<BackHeader title={t('lesson')} />}>
         <EmptyState icon="help-circle-outline" title={pick({ fr: 'Leçon introuvable', ar: 'الدَّرْسُ غَيْرُ مَوْجُودٍ', en: 'Lesson not found' })} action={<Button title={t('learn')} onPress={() => router.replace('/learn')} />} />
       </Screen>
     );
-  const unit = UNITS.find((u) => u.id === lesson.unitId)!;
-  const open = unitUnlocked(s, unit.id);
+  const unit = lesson.unitId ? UNITS.find((u) => u.id === lesson.unitId) : undefined;
+  const open = unit ? unitUnlocked(s, unit.id) : true;
   const lic = LICENSES[lesson.license];
+  const grammar = GRAMMAR_BY_ID[lesson.id];
+  const [openExercise, setOpenExercise] = useState<number | null>(null);
 
   if (!playable(lesson))
     return (
-      <Screen header={<BackHeader title={lesson.title[gloss]} subtitle={`${t('unit')} ${unit.id}`} />}>
+      <Screen header={<BackHeader title={lesson.title[gloss]} subtitle={unit ? `${t('unit')} ${unit.id}` : pick({ fr: 'Grammaire', ar: 'قَوَاعِد', en: 'Grammar' })} />}>
         <Banner kind="warning" icon="alert-circle" title={lic.short[lang]} text={lic.detail[gloss]} />
         <Card>
           <T v="h3">{pick({ fr: 'Comment remplir cet emplacement', ar: 'كَيْفَ تَمْلَأُ هٰذَا المَكَانَ', en: 'How to fill this slot' })}</T>
@@ -45,7 +49,7 @@ export default function LessonScreen() {
 
   return (
     <Screen
-      header={<BackHeader title={lang === 'ar' ? lesson.title.ar : lesson.title[gloss]} subtitle={`${t('unit')} ${unit.id} · ${lang === 'ar' ? unit.ar : unit[gloss]}`} />}
+      header={<BackHeader title={lang === 'ar' ? lesson.title.ar : lesson.title[gloss]} subtitle={unit ? `${t('unit')} ${unit.id} · ${lang === 'ar' ? unit.ar : unit[gloss]}` : pick({ fr: 'Séance de 5 minutes', ar: 'خَمْسُ دَقَائِق', en: 'A 5-minute session' })} />}
       footer={
         <View style={{ padding: 12, borderTopWidth: 1, borderTopColor: p.border, backgroundColor: p.surface }}>
           <View style={{ width: '100%', maxWidth: 820, alignSelf: 'center' }}>
@@ -61,8 +65,34 @@ export default function LessonScreen() {
       }
     >
       <LicenseTag id={lesson.license} />
+      {grammar ? <T v="label" muted>{pick({ fr: 'Explication', ar: 'شَرْح', en: 'Explanation' })}</T> : null}
       {lesson.tip ? <Banner kind="info" icon="bulb-outline" text={lesson.tip[gloss]} /> : null}
+      {unit && chapterForUnit(unit.id) ? (
+        <Button
+          kind="secondary"
+          icon="library-outline"
+          title={pick({ fr: 'Ce chapitre dans le livre', ar: 'هٰذَا الفَصْلُ فِي الكِتَاب', en: 'This chapter in the book' })}
+          onPress={() => router.push({ pathname: '/ebook/[id]', params: { id: chapterForUnit(unit.id)!.id } })}
+        />
+      ) : null}
       {!open ? <Banner kind="warning" icon="lock-closed" text={pick({ fr: 'Unité verrouillée : lecture possible, exercice après l’unité précédente.', ar: 'الوَحْدَةُ مُقْفَلَةٌ', en: 'Locked unit: you can read, exercise after the previous unit.' })} /> : null}
+      {grammar ? (
+        <View style={{ gap: 8 }}>
+          <T v="label" muted>{pick({ fr: 'Exercices de la séance', ar: 'تَمَارِين', en: 'Session exercises' })}</T>
+          {grammar.exercises.map((exercise, index) => {
+            const labels = { identify: 'Identifier', irab: 'iʿrāb', transform: 'Transformer', fill: 'Compléter' };
+            const shown = openExercise === index;
+            return (
+              <Card key={exercise.kind} onPress={() => setOpenExercise(shown ? null : index)} a11y={`${labels[exercise.kind]}. ${exercise.prompt}`}>
+                <T v="caption" color={p.primary}>{labels[exercise.kind]}</T>
+                <T v="body">{exercise.prompt}</T>
+                <AR size={24}>{exercise.ar}</AR>
+                {shown ? (/[\u0600-\u06FF]/.test(exercise.answer) ? <AR size={24}>{exercise.answer}</AR> : <T v="body">{exercise.answer}</T>) : <T v="small" muted>{pick({ fr: 'Toucher pour la réponse', ar: 'اِلْمَسْ لِلجَوَاب', en: 'Tap for the answer' })}</T>}
+              </Card>
+            );
+          })}
+        </View>
+      ) : null}
       {lesson.items.map((it) => {
         const forms = it.kind === 'letter' ? letterForms(it.ar) : null;
         return (

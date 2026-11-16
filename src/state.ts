@@ -3,6 +3,12 @@ import { isoDay } from '@/kit/format';
 import { ALL_ITEMS, ITEM_BY_ID, LESSON_BY_ID, UNITS, playable, type Item, type Lesson } from '@/data/curriculum';
 import { inspectLearningSnapshot, isLessonRecord, isSchedulableCard } from '@/lib/learningSnapshot';
 
+/** Position de lecture du livre. Absente des profils anciens : le défaut est vide. */
+export type BookProgress = {
+  positions: Record<string, string>;
+  recent?: string;
+};
+
 export type UiLang = 'fr' | 'ar' | 'en';
 export type Gloss = 'fr' | 'en';
 
@@ -37,6 +43,9 @@ export type State = {
   days: Record<string, number>; // isoDay → XP gagnés ce jour
   pacer: { target: number; sessions: PacerSession[] };
   tashkilBest: number | null;
+  book: BookProgress;
+  /** Niveau suggéré par le test de placement. Absent des profils anciens. */
+  placement: 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | null;
 };
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -65,6 +74,8 @@ const initial = (): State => ({
   days: {},
   pacer: { target: 20, sessions: [] },
   tashkilBest: null,
+  book: { positions: {} },
+  placement: null,
 });
 
 /**
@@ -315,3 +326,20 @@ export function finishOnboarding(opts: { lang: UiLang; startUnit: number; dailyG
 }
 
 export const lessonById = (id: string) => LESSON_BY_ID[id];
+
+/** Mémorise la section ouverte. N’écrit que des identifiants courts ; le reste du profil est recopié. */
+export function setBookPosition(partId: string, sectionId: string) {
+  if (!/^[a-z0-9-]{1,40}$/.test(partId) || !/^[a-z0-9-]{1,80}$/.test(sectionId)) return;
+  store.set((s) => {
+    const prev = s.book ?? { positions: {} };
+    return { ...s, book: { ...prev, recent: partId, positions: { ...prev.positions, [partId]: sectionId } } };
+  });
+}
+
+const PLACEMENT_OK = new Set(['A1', 'A2', 'B1', 'B2', 'C1']);
+
+/** Enregistre le niveau de placement. Ne touche pas aux leçons déjà faites. */
+export function setPlacement(level: State['placement']) {
+  if (level !== null && !PLACEMENT_OK.has(level)) return;
+  store.set((s) => ({ ...s, placement: level }));
+}

@@ -1,0 +1,13 @@
+/**
+ * Sans EXPO_TV, aucune exclusion : l’iPhone lie comme avant.
+ */
+const { TV_AUTOLINK_EXCLUDE } = require('./scripts/tv-native.cjs');
+
+if (process.env.EXPO_TV !== '1') {
+  module.exports = {};
+} else {
+  const off = { platforms: { ios: null, tvos: null } };
+  const dependencies = {};
+  for (const name of TV_AUTOLINK_EXCLUDE) dependencies[name] = off;
+  module.exports = { dependencies };
+}
