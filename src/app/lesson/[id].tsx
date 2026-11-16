@@ -1,11 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { alpha, useTheme } from '@/kit/theme';
 import { Banner, Button, Card, EmptyState, Row, Screen, T } from '@/kit/ui';
 import { AR, AudioButton, BackHeader, LicenseTag, Translit } from '@/components/common';
 import { LESSON_BY_ID, UNITS, letterForms, playable } from '@/data/curriculum';
-import { lessonByAnyId } from '@/data/grammar';
+import { GRAMMAR_BY_ID, lessonByAnyId } from '@/data/grammar';
 import { chapterForUnit } from '@/data/book';
 import { LICENSES } from '@/data/licenses';
 import { useI18n } from '@/lib/i18n';
@@ -27,6 +27,8 @@ export default function LessonScreen() {
   const unit = lesson.unitId ? UNITS.find((u) => u.id === lesson.unitId) : undefined;
   const open = unit ? unitUnlocked(s, unit.id) : true;
   const lic = LICENSES[lesson.license];
+  const grammar = GRAMMAR_BY_ID[lesson.id];
+  const [openExercise, setOpenExercise] = useState<number | null>(null);
 
   if (!playable(lesson))
     return (
@@ -63,6 +65,7 @@ export default function LessonScreen() {
       }
     >
       <LicenseTag id={lesson.license} />
+      {grammar ? <T v="label" muted>{pick({ fr: 'Explication', ar: 'شَرْح', en: 'Explanation' })}</T> : null}
       {lesson.tip ? <Banner kind="info" icon="bulb-outline" text={lesson.tip[gloss]} /> : null}
       {unit && chapterForUnit(unit.id) ? (
         <Button
@@ -73,6 +76,23 @@ export default function LessonScreen() {
         />
       ) : null}
       {!open ? <Banner kind="warning" icon="lock-closed" text={pick({ fr: 'Unité verrouillée : lecture possible, exercice après l’unité précédente.', ar: 'الوَحْدَةُ مُقْفَلَةٌ', en: 'Locked unit: you can read, exercise after the previous unit.' })} /> : null}
+      {grammar ? (
+        <View style={{ gap: 8 }}>
+          <T v="label" muted>{pick({ fr: 'Exercices de la séance', ar: 'تَمَارِين', en: 'Session exercises' })}</T>
+          {grammar.exercises.map((exercise, index) => {
+            const labels = { identify: 'Identifier', irab: 'iʿrāb', transform: 'Transformer', fill: 'Compléter' };
+            const shown = openExercise === index;
+            return (
+              <Card key={exercise.kind} onPress={() => setOpenExercise(shown ? null : index)} a11y={`${labels[exercise.kind]}. ${exercise.prompt}`}>
+                <T v="caption" color={p.primary}>{labels[exercise.kind]}</T>
+                <T v="body">{exercise.prompt}</T>
+                <AR size={24}>{exercise.ar}</AR>
+                {shown ? (/[\u0600-\u06FF]/.test(exercise.answer) ? <AR size={24}>{exercise.answer}</AR> : <T v="body">{exercise.answer}</T>) : <T v="small" muted>{pick({ fr: 'Toucher pour la réponse', ar: 'اِلْمَسْ لِلجَوَاب', en: 'Tap for the answer' })}</T>}
+              </Card>
+            );
+          })}
+        </View>
+      ) : null}
       {lesson.items.map((it) => {
         const forms = it.kind === 'letter' ? letterForms(it.ar) : null;
         return (

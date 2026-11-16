@@ -1,4 +1,5 @@
 import { LESSON_BY_ID, UNITS, type Item, type Lesson } from '@/data/curriculum';
+import { EXTRA_SPECS } from '@/data/grammarDeep';
 import type { LessonRecord, State } from '@/state';
 
 /**
@@ -13,12 +14,24 @@ export type LevelId = 'A1' | 'A2' | 'B1' | 'B2' | 'C1';
 
 export const LEVEL_ORDER: LevelId[] = ['A1', 'A2', 'B1', 'B2', 'C1'];
 
+export type ExerciseKind = 'identify' | 'irab' | 'transform' | 'fill';
+
+export type GrammarExercise = {
+  kind: ExerciseKind;
+  prompt: string;
+  /** Phrase vocalisée, ou la même phrase avec le dernier mot masqué. */
+  ar: string;
+  /** Réponse : sens français, ou phrase arabe vocalisée pour transformer / compléter. */
+  answer: string;
+};
+
 export type GrammarLesson = Lesson & {
   level: LevelId;
   minutes: number;
   /** Sujet couvert, pour le rapport de couverture. */
   topic: string;
   caution: boolean;
+  exercises: GrammarExercise[];
 };
 
 export type GrammarUnit = {
@@ -72,7 +85,32 @@ function lesson(
     tip: { fr: note, en: caution ? `${tip} (to be checked)` : tip },
     license: 'ag-original',
     items: items(id, rows),
+    exercises: makeExercises(rows, topic),
   };
+}
+
+const EXERCISE_KINDS: ExerciseKind[] = ['identify', 'irab', 'transform', 'fill'];
+
+function maskLast(ar: string): string {
+  const parts = ar.split(' ');
+  if (parts.length < 2) return `…… ${ar}`;
+  parts[parts.length - 1] = '……';
+  return parts.join(' ');
+}
+
+function makeExercises(rows: Raw[], topic: string): GrammarExercise[] {
+  const [a, b, c, d] = rows;
+  const other = rows[rows.length - 1];
+  return [
+    { kind: 'identify', prompt: `Identifiez le sens (${topic}).`, ar: a[0], answer: a[2] },
+    { kind: 'irab', prompt: 'Décrivez le rôle montré par cette phrase. La voyelle finale hors de cet exemple est à vérifier.', ar: b[0], answer: b[2] },
+    { kind: 'transform', prompt: 'Passez à l’autre forme de la séance, en gardant toutes les voyelles.', ar: c[0], answer: other[0] },
+    { kind: 'fill', prompt: `Complétez. Sens attendu : « ${d[2]} ».`, ar: maskLast(d[0]), answer: d[0] },
+  ];
+}
+
+export function exerciseKinds(): ExerciseKind[] {
+  return EXERCISE_KINDS;
 }
 
 function unit(level: LevelId, id: string, ar: string, fr: string, en: string, topic: string, lessons: GrammarLesson[]): GrammarUnit {
@@ -368,12 +406,40 @@ export const GRAMMAR_LEVELS: GrammarLevel[] = [
   },
 ];
 
+for (const spec of EXTRA_SPECS) {
+  const level = GRAMMAR_LEVELS.find((entry) => entry.id === spec.level);
+  if (!level) throw new Error(`niveau inconnu ${spec.level}`);
+  level.units.push(
+    unit(spec.level, spec.unit, spec.uAr, spec.uFr, spec.uEn, spec.topic, [
+      lesson(spec.level, spec.unit, spec.n, { ar: spec.tAr, fr: spec.tFr, en: spec.tEn }, spec.topic, spec.rows, spec.explain, spec.caution),
+    ]),
+  );
+}
+
 export const GRAMMAR_LESSONS: GrammarLesson[] = GRAMMAR_LEVELS.flatMap((level) => level.units.flatMap((u) => u.lessons));
 
 export const GRAMMAR_BY_ID: Record<string, GrammarLesson> = Object.fromEntries(GRAMMAR_LESSONS.map((l) => [l.id, l]));
 
 export function lessonByAnyId(id: string): Lesson | undefined {
   return LESSON_BY_ID[id] ?? GRAMMAR_BY_ID[id];
+}
+
+/** Exemples de la leçon, plus une carte de révision par exercice. Les ids .1 .2 ne bougent pas. */
+export function reviewItems(lessonId: string): Item[] | null {
+  const lesson = GRAMMAR_BY_ID[lessonId];
+  if (!lesson) return null;
+  const cards: Item[] = lesson.exercises.map((exercise, index) => {
+    const answerHasArabic = /[\u0600-\u06FF]/.test(exercise.answer);
+    return {
+      id: `${lesson.id}.x${index + 1}`,
+      ar: answerHasArabic ? exercise.answer : exercise.ar,
+      tr: exercise.kind,
+      fr: answerHasArabic ? exercise.prompt : exercise.answer,
+      en: exercise.prompt,
+      kind: 'phrase',
+    };
+  });
+  return [...lesson.items, ...cards];
 }
 
 export function levelById(id: string): GrammarLevel | undefined {

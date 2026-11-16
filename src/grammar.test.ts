@@ -2,6 +2,7 @@ import { deepEqual, equal } from 'node:assert/strict';
 import { test } from 'node:test';
 import { ALL_ITEMS } from '@/data/curriculum';
 import {
+  GRAMMAR_BY_ID,
   GRAMMAR_LESSONS,
   LEVEL_ORDER,
   arabicIsVocalized,
@@ -59,7 +60,7 @@ test('chaque niveau A1–C1 couvre les sujets demandés', () => {
   equal(rows.map((row) => row.level).join(','), LEVEL_ORDER.join(','));
   equal(rows[0].readingUnits, 11);
   for (const row of rows) {
-    ok(row.lessons >= 1, row.level);
+    ok(row.lessons >= 15 && row.lessons <= 25, `${row.level} ${row.lessons}`);
     ok(row.items >= row.lessons * 4, row.level);
     for (const topic of NEED[row.level]) ok(row.topics.includes(topic), `${row.level} ${topic}`);
   }
@@ -73,7 +74,9 @@ test('les leçons nouvelles sont vocalisées, originales, et ne réutilisent pas
     ok(!reading.has(lesson.id));
     ok(!seen.has(lesson.id));
     seen.add(lesson.id);
-    ok(lesson.items.length >= 4, lesson.id);
+    ok(lesson.items.length >= 4 && lesson.items.length <= 8, `${lesson.id} ${lesson.items.length}`);
+    ok(lesson.exercises.length === 4, lesson.id);
+    equal(lesson.exercises.map((exercise) => exercise.kind).sort().join(','), 'fill,identify,irab,transform');
     ok(lesson.minutes <= 5, lesson.id);
     ok(lesson.license === 'ag-original');
     if (lesson.caution) ok(lesson.tip?.fr.includes('à vérifier'), lesson.id);
@@ -81,9 +84,17 @@ test('les leçons nouvelles sont vocalisées, originales, et ne réutilisent pas
       ok(arabicIsVocalized(item.ar), item.ar);
       ok(!reading.has(item.id));
     }
+    for (const exercise of lesson.exercises) {
+      if (/[\u0600-\u06FF]/.test(exercise.ar)) ok(arabicIsVocalized(exercise.ar), exercise.ar);
+      if (/[\u0600-\u06FF]/.test(exercise.answer)) ok(arabicIsVocalized(exercise.answer), exercise.answer);
+    }
     equal(lessonByAnyId(lesson.id)?.id, lesson.id);
   }
   equal(lessonByAnyId('u1l1')?.id, 'u1l1');
+  const kept = GRAMMAR_BY_ID['ga1u-readl1'];
+  equal(kept?.items[0]?.ar, 'اِقْرَأِ الحَرْفَ');
+  equal(kept?.items.length, 4);
+  equal(kept?.items[0]?.id, 'ga1u-readl1.1');
 });
 
 test('le placement ne touche pas la progression déjà enregistrée', () => {

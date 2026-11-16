@@ -5,7 +5,7 @@ import { alpha, useTheme } from '@/kit/theme';
 import { Banner, Button, Card, EmptyState, IconButton, Ionicons, Progress, Row, Screen, Stat, T } from '@/kit/ui';
 import { AR, AudioButton, LicenseTag, Translit } from '@/components/common';
 import { QuizChoices } from '@/components/QuizChoices';
-import { lessonByAnyId } from '@/data/grammar';
+import { lessonByAnyId, reviewItems } from '@/data/grammar';
 import { buildDrill, makeQuestion, type Question } from '@/lib/drill';
 import { useI18n } from '@/lib/i18n';
 import { PASS, addXp, dueItems, gradeItem, recordLesson, store } from '@/state';
@@ -23,7 +23,7 @@ export default function Drill() {
 
   // La file est figée au montage : les notes Leitner ne la modifient pas en cours de route.
   const initialQueue = useMemo<Question[]>(() => {
-    if (lesson) return buildDrill(lesson.items, gloss, 12);
+    if (lesson) return buildDrill(reviewItems(lesson.id) ?? lesson.items, gloss, 12);
     if (review) return buildDrill(dueItems(store.get()), gloss, 12);
     return [];
     // eslint-disable-next-line react-hooks/exhaustive-deps
