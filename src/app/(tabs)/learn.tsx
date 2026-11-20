@@ -1,14 +1,16 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View } from 'react-native';
 import { router } from 'expo-router';
 import { alpha, useTheme } from '@/kit/theme';
-import { Banner, Button, Card, Header, Ionicons, Progress, Row, Screen, Section, T, useToast } from '@/kit/ui';
+import { Banner, Button, Card, Grid, Header, Ionicons, Progress, Row, Screen, Section, T, useToast } from '@/kit/ui';
+import { DesktopSearch } from '@/components/DesktopSearch';
 import { AR, Pill } from '@/components/common';
 import { UNITS, playable } from '@/data/curriculum';
 import { unitInk } from '@/theme';
 import { showTutorScreen } from '@/config';
 import { useI18n } from '@/lib/i18n';
 import { dueItems, nextLesson, store, streak, today, unitProgress, unitUnlocked } from '@/state';
+import { useFocus, useFocusText } from '@/kit/focusApp';
 
 export default function Learn() {
   const p = useTheme();
@@ -22,6 +24,14 @@ export default function Learn() {
   const goal = s.settings.dailyGoal;
   const st = streak(s);
   const nextUnit = next ? UNITS.find((u) => u.id === next.unitId) : null;
+  const [query, setQuery] = useState('');
+  const needle = query.trim().toLowerCase();
+  const units = UNITS.filter((u) => {
+    if (!needle) return true;
+    return `${u.id} ${u.ar} ${u.fr} ${u.en}`.toLowerCase().includes(needle);
+  });
+  const { screen: ftx } = useFocusText();
+  const focusActive = !!useFocus().data.active;
 
   return (
     <Screen
@@ -64,6 +74,30 @@ export default function Learn() {
         <Banner kind="success" title={pick({ fr: 'Parcours terminé', ar: 'أَحْسَنْتَ!', en: 'Path complete' })} text={pick({ fr: 'Toutes les unités ouvertes sont terminées. Révisez ou lancez la course.', ar: 'رَاجِعْ أَوِ ابْدَأِ السِّبَاقَ', en: 'All open units are done. Review or try the race.' })} />
       )}
 
+      <Card accent={p.primary} onPress={() => router.push('/grammar')} a11y={pick({ fr: 'Séance de grammaire de cinq minutes', ar: 'جَلْسَةُ قَوَاعِد', en: 'Five-minute grammar session' })}>
+        <T v="caption" color={p.primary}>{pick({ fr: '5 minutes', ar: '٥ دَقَائِق', en: '5 minutes' })}</T>
+        <T v="h3">{pick({ fr: 'Une séance courte de grammaire', ar: 'جَلْسَةٌ قَصِيرَةٌ', en: 'A short grammar session' })}</T>
+        <T v="small" muted>{pick({ fr: 'De A1 à C1, une leçon à la fois. La lecture déjà faite reste en place.', ar: 'مِنَ الأَوَّلِ إِلَى الخَامِس. القِرَاءَةُ تَبْقَى', en: 'From A1 to C1, one lesson at a time. Reading you already did stays put.' })}</T>
+      </Card>
+
+      <Card accent={p.accent} onPress={() => router.push('/book')} a11y={pick({ fr: 'Ouvrir le livre', ar: 'اِفْتَحِ الكِتَاب', en: 'Open the book' })}>
+        <T v="caption" color={p.accent}>{t('book')}</T>
+        <T v="h3">{pick({ fr: 'Lire l’ebook dans l’app', ar: 'اِقْرَأِ الكِتَابَ فِي التَّطْبِيق', en: 'Read the ebook in the app' })}</T>
+        <T v="small" muted>{pick({ fr: 'Méthode, six chapitres, quiz au toucher. Le PDF se partage vers une liseuse.', ar: 'سِتَّةُ فُصُولٍ وَاِخْتِبَارَات', en: 'Method, six chapters, tap-to-check quizzes. Share the PDF to a reader.' })}</T>
+      </Card>
+
+      {/* Mode Focus : entrée depuis Apprendre (session de 10 à 30 min). */}
+      <Card onPress={() => router.push('/focus')} a11y={ftx.entryA11y}>
+        <Row gap={12}>
+          <Ionicons name="timer-outline" size={24} color={p.primary} />
+          <View style={{ flex: 1 }}>
+            <T v="label">{focusActive ? ftx.activeTitle : ftx.entryTitle}</T>
+            <T v="small" muted>{focusActive ? ftx.resume : ftx.entryText}</T>
+          </View>
+          <Ionicons name={lang === 'ar' ? 'chevron-back' : 'chevron-forward'} size={18} color={p.textMuted} />
+        </Row>
+      </Card>
+
       {due > 0 ? (
         <Banner
           kind="info"
@@ -75,10 +109,12 @@ export default function Learn() {
       ) : null}
 
       <Section title={pick({ fr: 'Parcours', ar: 'المَسَار', en: 'Path' })}>
-        {UNITS.map((u, i) => {
+        <DesktopSearch value={query} onChange={setQuery} placeholder={pick({ fr: 'Rechercher une unité', ar: 'اِبْحَثْ', en: 'Search units' })} />
+        <Grid>
+        {units.map((u) => {
           const open = unitUnlocked(s, u.id);
           const prog = unitProgress(s, u.id);
-          const color = unitInk(i, p.dark);
+          const color = unitInk(UNITS.findIndex((unit) => unit.id === u.id), p.dark);
           const nPlay = u.lessons.filter(playable).length;
           const label = `${t('unit')} ${u.id} — ${lang === 'ar' ? u.ar : u[gloss]}${open ? '' : ' — ' + t('locked')}`;
           return (
@@ -110,6 +146,8 @@ export default function Learn() {
             </Card>
           );
         })}
+        </Grid>
+        {needle && units.length === 0 ? <T v="small" muted>{pick({ fr: 'Aucune unité.', ar: 'لَا شَيْء', en: 'No unit.' })}</T> : null}
       </Section>
 
       <Section title={pick({ fr: 'Outils', ar: 'أَدَوَات', en: 'Tools' })}>

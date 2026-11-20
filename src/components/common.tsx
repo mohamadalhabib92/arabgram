@@ -8,6 +8,7 @@ import { formatDigits } from '@/kit/format';
 import { arabicFamily } from '@/lib/fonts';
 import { TYPE } from '@/theme';
 import { hasArabicVoice, speakArabic } from '@/lib/speech';
+import { useKeyFocus } from '@/lib/useKeyFocus';
 import { useI18n } from '@/lib/i18n';
 import { store } from '@/state';
 
@@ -75,26 +76,32 @@ export function AudioButton({ text, size = 22 }: { text: string; size?: number }
   const toast = useToast();
   const { pick } = useI18n();
   const enabled = store.useSelect((s) => s.settings.audio);
+  const play = async () => {
+    const ok = await hasArabicVoice();
+    if (!ok) {
+      toast(pick({ fr: 'Aucune voix arabe sur cet appareil — installez-en une dans les réglages système.', ar: 'لَا يُوجَدُ صَوْتٌ عَرَبِيّ عَلَى هٰذَا الجِهَاز', en: 'No Arabic voice on this device — install one in system settings.' }), 'info');
+      return;
+    }
+    speakArabic(text);
+  };
+  const focused = useKeyFocus(enabled, play);
   if (!enabled) return null;
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={pick({ fr: 'Écouter la prononciation', ar: 'اِسْتَمِعْ إِلَى النُّطْق', en: 'Listen to pronunciation' })}
-      onPress={async () => {
-        const ok = await hasArabicVoice();
-        if (!ok) {
-          toast(pick({ fr: 'Aucune voix arabe sur cet appareil — installez-en une dans les réglages système.', ar: 'لَا يُوجَدُ صَوْتٌ عَرَبِيّ عَلَى هٰذَا الجِهَاز', en: 'No Arabic voice on this device — install one in system settings.' }), 'info');
-          return;
-        }
-        speakArabic(text);
+      onPress={() => {
+        void play();
       }}
-      style={({ pressed }) => ({
+      style={(state) => ({
         width: 44,
         height: 44,
         borderRadius: 22,
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: alpha(t.primary, pressed ? 0.25 : 0.12),
+        backgroundColor: alpha(t.primary, state.pressed ? 0.25 : 0.12),
+        borderWidth: focused || Boolean((state as { hovered?: boolean }).hovered) ? 2 : 0,
+        borderColor: t.accent,
       })}
     >
       <Ionicons name="volume-high" size={size} color={t.primary} />
@@ -123,7 +130,7 @@ export function LicenseTag({ id, compact }: { id: LicenseId; compact?: boolean }
   );
 }
 
-export function BackHeader({ title, subtitle, right }: { title: string; subtitle?: string; right?: React.ReactNode }) {
+export function BackHeader({ title, subtitle, right, hideBack }: { title: string; subtitle?: string; right?: React.ReactNode; hideBack?: boolean }) {
   const { lang, t } = useI18n();
   return (
     <Header
@@ -131,7 +138,7 @@ export function BackHeader({ title, subtitle, right }: { title: string; subtitle
       subtitle={subtitle}
       right={right}
       left={
-        <IconButton
+        hideBack ? undefined : <IconButton
           icon={lang === 'ar' ? 'arrow-forward' : 'arrow-back'}
           a11y={t('back')}
           onPress={() => (router.canGoBack() ? router.back() : router.replace('/learn'))}

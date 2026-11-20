@@ -1,12 +1,16 @@
 import React, { useMemo, useState } from 'react';
-import { Pressable, View } from 'react-native';
+import { View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { alpha, useTheme } from '@/kit/theme';
 import { Banner, Button, Card, EmptyState, IconButton, Ionicons, Progress, Row, Screen, Stat, T } from '@/kit/ui';
 import { AR, AudioButton, LicenseTag, Translit } from '@/components/common';
-import { LESSON_BY_ID } from '@/data/curriculum';
+import { QuizChoices } from '@/components/QuizChoices';
+import { lessonByAnyId, reviewItems } from '@/data/grammar';
 import { buildDrill, makeQuestion, type Question } from '@/lib/drill';
 import { useI18n } from '@/lib/i18n';
+import { haptic } from '@/kit/haptics';
+import { announce } from '@/kit/a11y';
+import { Pop, useCelebrate } from '@/kit/premium';
 import { PASS, addXp, dueItems, gradeItem, recordLesson, store } from '@/state';
 
 type Phase = 'ask' | 'feedback' | 'done';
@@ -17,12 +21,12 @@ export default function Drill() {
   const { lang, t, pick } = useI18n();
   const gloss = store.useSelect((s) => s.settings.gloss);
   const showTr = store.useSelect((s) => s.settings.showTranslit);
-  const lesson = params.lesson ? LESSON_BY_ID[String(params.lesson)] : undefined;
+  const lesson = params.lesson ? lessonByAnyId(String(params.lesson)) : undefined;
   const review = params.mode === 'review';
 
   // La file est figée au montage : les notes Leitner ne la modifient pas en cours de route.
   const initialQueue = useMemo<Question[]>(() => {
-    if (lesson) return buildDrill(lesson.items, gloss, 12);
+    if (lesson) return buildDrill(reviewItems(lesson.id) ?? lesson.items, gloss, 12);
     if (review) return buildDrill(dueItems(store.get()), gloss, 12);
     return [];
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -33,6 +37,7 @@ export default function Drill() {
   const [phase, setPhase] = useState<Phase>('ask');
   const [firstOk, setFirstOk] = useState(0);
   const [xp, setXp] = useState(0);
+  const celebrate = useCelebrate();
   const total = initialQueue.length;
 
   if (!total)
@@ -54,6 +59,9 @@ export default function Drill() {
     const ok = opt === q.answer;
     setPicked(opt);
     setPhase('feedback');
+    if (ok) haptic.success();
+    else haptic.warning();
+    announce(ok ? t('correct') : `${t('wrong')} — ${t('answer')} : ${q.answer}`);
     if (!q.retry) {
       gradeItem(q.item.id, ok);
       if (ok) setFirstOk((n) => n + 1);
@@ -78,6 +86,7 @@ export default function Drill() {
     addXp(gained);
     setXp(gained);
     setPhase('done');
+    if (acc >= PASS) celebrate({ title: pick({ fr: 'Leçon réussie', ar: 'نَجَحْتَ', en: 'Lesson passed' }), sub: `+${gained} XP`, icon: 'trophy' });
   };
 
   if (phase === 'done') {
@@ -86,7 +95,9 @@ export default function Drill() {
     return (
       <Screen>
         <View style={{ alignItems: 'center', gap: 6, marginTop: 24 }}>
-          <Ionicons name={passed ? 'trophy' : 'refresh-circle'} size={64} color={passed ? p.accent : p.warning} />
+          <Pop delay={120}>
+            <Ionicons name={passed ? 'trophy' : 'refresh-circle'} size={64} color={passed ? p.accent : p.warning} accessibilityElementsHidden importantForAccessibility="no" />
+          </Pop>
           <AR size={30} center weight="700">{passed ? 'أَحْسَنْتَ!' : 'حَاوِلْ مَرَّةً أُخْرَى'}</AR>
           <T v="h2" center>
             {passed ? pick({ fr: 'Leçon réussie', ar: 'نَجَحْتَ', en: 'Lesson passed' }) : pick({ fr: 'Encore un essai ?', ar: 'مَرَّةً أُخْرَى؟', en: 'One more try?' })}
@@ -98,7 +109,7 @@ export default function Drill() {
         </Row>
         <Banner kind="info" icon="albums-outline" text={pick({ fr: 'Chaque réponse a mis à jour vos boîtes Leitner : les erreurs reviennent dès aujourd’hui, les réussites plus tard.', ar: 'الأَخْطَاءُ تَعُودُ اليَوْمَ، وَالصَّحِيحُ لَاحِقًا', en: 'Each answer updated your Leitner boxes: mistakes return today, successes later.' })} />
         {lesson && !passed ? <Button title={pick({ fr: 'Recommencer', ar: 'أَعِدْ', en: 'Retry' })} icon="refresh" onPress={() => router.replace({ pathname: '/drill', params: { lesson: lesson.id } })} /> : null}
-        <Button title={t('continue')} kind={lesson && !passed ? 'secondary' : 'primary'} onPress={() => (lesson ? router.replace({ pathname: '/unit/[id]', params: { id: String(lesson.unitId) } }) : router.replace('/review'))} />
+        <Button title={t('continue')} kind={lesson && !passed ? 'secondary' : 'primary'} onPress={() => (lesson && lesson.unitId ? router.replace({ pathname: '/unit/[id]', params: { id: String(lesson.unitId) } }) : lesson ? router.replace('/grammar') : router.replace('/review'))} />
       </Screen>
     );
   }
@@ -162,36 +173,15 @@ export default function Drill() {
           </>
         )}
       </Card>
-      <View style={{ gap: 10 }} accessibilityRole="radiogroup">
-        {q.options.map((opt, i) => {
-          const isAns = opt === q.answer;
-          const isPick = opt === picked;
-          const border = phase === 'feedback' && isAns ? p.success : phase === 'feedback' && isPick ? p.danger : p.border;
-          const bg = phase === 'feedback' && isAns ? alpha(p.success, 0.12) : phase === 'feedback' && isPick ? alpha(p.danger, 0.12) : p.surface;
-          return (
-            <Pressable
-              key={opt + i}
-              accessibilityRole="radio"
-              accessibilityLabel={`${pick({ fr: 'Réponse', ar: 'جَوَاب', en: 'Answer' })} ${i + 1} : ${opt}`}
-              accessibilityState={{ selected: isPick, disabled: phase !== 'ask' }}
-              onPress={() => choose(opt)}
-              style={({ pressed }) => ({
-                minHeight: 56,
-                paddingHorizontal: 16,
-                paddingVertical: 8,
-                borderRadius: p.radius,
-                borderWidth: 2,
-                borderColor: border,
-                backgroundColor: bg,
-                justifyContent: 'center',
-                opacity: pressed ? 0.85 : 1,
-              })}
-            >
-              {arabicOptions ? <AR size={26} center>{opt}</AR> : <T v="h3" center>{opt}</T>}
-            </Pressable>
-          );
-        })}
-      </View>
+      <QuizChoices
+        count={q.options.length}
+        pickedIndex={picked == null ? null : q.options.indexOf(picked)}
+        answerIndex={q.options.indexOf(q.answer)}
+        revealed={phase === 'feedback'}
+        onPick={(i) => choose(q.options[i])}
+        labelFor={(i) => `${pick({ fr: 'Réponse', ar: 'جَوَاب', en: 'Answer' })} ${i + 1} : ${q.options[i]}`}
+        renderOption={(i) => (arabicOptions ? <AR size={26} center>{q.options[i]}</AR> : <T v="h3" center>{q.options[i]}</T>)}
+      />
     </Screen>
   );
 }

@@ -3,6 +3,7 @@ import { store, type UiLang } from '@/state';
 /** Chaînes d’interface FR / AR / EN. Les libellés d’accessibilité suivent la langue choisie. */
 const S = {
   learn: { fr: 'Apprendre', ar: 'تَعَلَّمْ', en: 'Learn' },
+  book: { fr: 'Livre', ar: 'الكِتَاب', en: 'Book' },
   review: { fr: 'Révisions', ar: 'مُرَاجَعَة', en: 'Review' },
   pacer: { fr: 'Course', ar: 'السِّبَاق', en: 'Race' },
   progress: { fr: 'Progrès', ar: 'التَّقَدُّم', en: 'Progress' },

@@ -5,11 +5,15 @@ import { useTheme } from '@/kit/theme';
 import { Banner, Button, Card, Header, ListItem, Row, Screen, Section, Segmented, Sheet, T, ToggleRow, useToast } from '@/kit/ui';
 import { AR, useArabicVoice } from '@/components/common';
 import { exportText } from '@/kit/files';
+import { haptic, setHapticsEnabled, useHapticsEnabled } from '@/kit/haptics';
 import { useI18n } from '@/lib/i18n';
+import { isIosAppOnMac } from '@/lib/mac';
 import { showTutorScreen } from '@/config';
-import { DEFAULT_SETTINGS, setSettings, store, type Gloss, type Settings as S, type UiLang } from '@/state';
+import { RecoveryBanner } from '@/components/RecoveryBanner';
+import { afterResetAttempt, exportLearningRecord, setSettings, store, type Gloss, type Settings as S, type UiLang } from '@/state';
 
 export default function SettingsTab() {
+  const vibrations = useHapticsEnabled();
   const p = useTheme();
   const { t, pick } = useI18n();
   const toast = useToast();
@@ -32,6 +36,7 @@ export default function SettingsTab() {
 
   return (
     <Screen header={<Header title={t('settings')} />}>
+      <RecoveryBanner />
       <Section title={pick({ fr: 'Langue', ar: 'اللُّغَة', en: 'Language' })}>
         <Card>
           <T v="label" muted>{pick({ fr: 'Interface', ar: 'الوَاجِهَة', en: 'Interface' })}</T>
@@ -85,6 +90,15 @@ export default function SettingsTab() {
           <Segmented options={arOpts} value={near(st.arScale, arOpts)} onChange={(k) => setSettings({ arScale: +k })} />
           <AR size={26} center>بِسْمِ اللّٰهِ — السَّلَامُ عَلَيْكُمْ</AR>
           <ToggleRow label={pick({ fr: 'Afficher la translittération', ar: 'إِظْهَارُ النَّقْحَرَة', en: 'Show transliteration' })} value={st.showTranslit} onChange={(showTranslit) => setSettings({ showTranslit })} />
+          <ToggleRow
+            label={pick({ fr: 'Vibrations', ar: 'الاِهْتِزَاز', en: 'Vibrations' })}
+            sub={pick({ fr: 'Retour tactile lors des réponses et des actions.', ar: 'اِهْتِزَازٌ خَفِيفٌ عِنْدَ الإِجَابَة', en: 'Haptic feedback on answers and actions.' })}
+            value={vibrations}
+            onChange={(on) => {
+              setHapticsEnabled(on);
+              if (on) haptic.select();
+            }}
+          />
           <ToggleRow label={pick({ fr: 'Réduire les animations', ar: 'تَقْلِيلُ الحَرَكَة', en: 'Reduce motion' })} value={st.reduceMotion} onChange={(reduceMotion) => setSettings({ reduceMotion })} />
           <ToggleRow label={pick({ fr: 'Course sans chrono', ar: 'سِبَاقٌ دُونَ تَوْقِيت', en: 'Untimed race' })} sub={pick({ fr: 'Pas de limite de temps par mot.', ar: 'بِلَا حَدٍّ زَمَنِيّ', en: 'No time limit per word.' })} value={st.untimedPacer} onChange={(untimedPacer) => setSettings({ untimedPacer })} />
         </Card>
@@ -136,7 +150,7 @@ export default function SettingsTab() {
             icon="download-outline"
             title={pick({ fr: 'Exporter ma progression (JSON)', ar: 'تَصْدِيرُ التَّقَدُّم', en: 'Export my progress (JSON)' })}
             onPress={async () => {
-              await exportText('arabgram-progression.json', JSON.stringify(store.get(), null, 2), 'application/json');
+              await exportText('arabgram-progression.json', JSON.stringify(exportLearningRecord(), null, 2), 'application/json');
               toast(pick({ fr: 'Export prêt', ar: 'تَمَّ التَّصْدِير', en: 'Export ready' }), 'success');
             }}
           />
@@ -144,7 +158,7 @@ export default function SettingsTab() {
       </Section>
 
       <Button title={pick({ fr: 'Réinitialiser la progression', ar: 'إِعَادَةُ ضَبْطِ التَّقَدُّم', en: 'Reset progress' })} kind="danger" icon="trash-outline" onPress={() => setConfirm(true)} />
-      <T v="caption" muted center>ArabGram · {Platform.OS} · {pick({ fr: 'données locales uniquement', ar: 'بَيَانَاتٌ مَحَلِّيَّة', en: 'local data only' })}</T>
+      <T v="caption" muted center>ArabGram · {Platform.OS}{isIosAppOnMac() ? ' · Mac' : ''} · {pick({ fr: 'données locales uniquement', ar: 'بَيَانَاتٌ مَحَلِّيَّة', en: 'local data only' })}</T>
 
       <Sheet visible={confirm} onClose={() => setConfirm(false)} title={pick({ fr: 'Tout effacer ?', ar: 'حَذْفُ الكُلّ؟', en: 'Erase everything?' })}>
         <Banner kind="warning" text={pick({ fr: 'XP, série, boîtes de révision et historique de course seront supprimés de cet appareil. Vos réglages de langue sont conservés.', ar: 'سَيُحْذَفُ كُلُّ التَّقَدُّم', en: 'XP, streak, review boxes and race history will be deleted from this device. Language settings are kept.' })} />
@@ -156,9 +170,16 @@ export default function SettingsTab() {
             style={{ flex: 1 }}
             onPress={async () => {
               const keep = store.get().settings;
-              await store.reset();
-              store.set((s) => ({ ...s, onboarded: true, settings: { ...DEFAULT_SETTINGS, lang: keep.lang, gloss: keep.gloss, theme: keep.theme } }));
+              const outcome = await afterResetAttempt(store, { lang: keep.lang, gloss: keep.gloss, theme: keep.theme });
               setConfirm(false);
+              if (outcome === 'kept') {
+                toast(pick({
+                  fr: 'La suppression n’a pas abouti. Rien n’a été remplacé sur cet appareil.',
+                  ar: 'لَمْ يَتِمَّ الحَذْفُ. لَمْ يُغَيَّرْ شَيْءٌ عَلَى الجِهَازِ.',
+                  en: 'Deletion did not finish. Nothing on this device was replaced.',
+                }), 'error');
+                return;
+              }
               toast(pick({ fr: 'Progression réinitialisée', ar: 'تَمَّتْ إِعَادَةُ الضَّبْط', en: 'Progress reset' }), 'success');
             }}
           />
