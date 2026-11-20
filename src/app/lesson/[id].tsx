@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
+import { useReduceTransparency } from '@/kit/a11y';
 import { alpha, useTheme } from '@/kit/theme';
+import { glassPaint } from '@/kit/verre';
 import { Banner, Button, Card, EmptyState, Row, Screen, T } from '@/kit/ui';
 import { AR, AudioButton, BackHeader, LicenseTag, Translit } from '@/components/common';
 import { LESSON_BY_ID, UNITS, letterForms, playable } from '@/data/curriculum';
@@ -10,14 +12,19 @@ import { chapterForUnit } from '@/data/book';
 import { LICENSES } from '@/data/licenses';
 import { useI18n } from '@/lib/i18n';
 import { store, unitUnlocked } from '@/state';
+import { IconButton } from '@/kit/ui';
+import { useFocus, useFocusText } from '@/kit/focusApp';
 
 export default function LessonScreen() {
   const p = useTheme();
+  const reduceT = useReduceTransparency();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { lang, t, pick } = useI18n();
   const s = store.use();
   const gloss = s.settings.gloss;
   const lesson = lessonByAnyId(String(id)) ?? LESSON_BY_ID[String(id)];
+  const { screen: ftx } = useFocusText();
+  const focusActive = !!useFocus().data.active;
   if (!lesson)
     return (
       <Screen header={<BackHeader title={t('lesson')} />}>
@@ -49,9 +56,15 @@ export default function LessonScreen() {
 
   return (
     <Screen
-      header={<BackHeader title={lang === 'ar' ? lesson.title.ar : lesson.title[gloss]} subtitle={unit ? `${t('unit')} ${unit.id} · ${lang === 'ar' ? unit.ar : unit[gloss]}` : pick({ fr: 'Séance de 5 minutes', ar: 'خَمْسُ دَقَائِق', en: 'A 5-minute session' })} />}
+      header={
+        <BackHeader
+          title={lang === 'ar' ? lesson.title.ar : lesson.title[gloss]}
+          subtitle={unit ? `${t('unit')} ${unit.id} · ${lang === 'ar' ? unit.ar : unit[gloss]}` : pick({ fr: 'Séance de 5 minutes', ar: 'خَمْسُ دَقَائِق', en: 'A 5-minute session' })}
+          right={focusActive ? undefined : <IconButton icon="timer-outline" a11y={ftx.entryA11y} onPress={() => router.push({ pathname: '/focus', params: { lesson: lesson.id } })} />}
+        />
+      }
       footer={
-        <View style={{ padding: 12, borderTopWidth: 1, borderTopColor: p.border, backgroundColor: p.surface }}>
+        <View style={{ padding: 12, borderTopWidth: 1, borderTopColor: p.border, backgroundColor: glassPaint({ dark: p.dark, bg: p.bg, surface: p.surface, reduceTransparency: reduceT }) }}>
           <View style={{ width: '100%', maxWidth: 820, alignSelf: 'center' }}>
             <Button
               title={pick({ fr: 'Commencer l’exercice', ar: 'اِبْدَأِ التَّمْرِينَ', en: 'Start exercise' })}

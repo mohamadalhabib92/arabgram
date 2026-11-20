@@ -1,31 +1,44 @@
 import React, { useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { router } from 'expo-router';
+import { useReduceTransparency } from '@/kit/a11y';
 import { alpha, useTheme } from '@/kit/theme';
+import { glassPaint } from '@/kit/verre';
+import { mix } from '@/kit/contrast';
 import { Banner, Button, Ionicons, Row, Screen, T } from '@/kit/ui';
 import { AR } from '@/components/common';
 import { useI18n } from '@/lib/i18n';
+import { haptic } from '@/kit/haptics';
 import { finishOnboarding, setSettings, type UiLang } from '@/state';
 
 function Choice({ title, sub, selected, onPress, icon }: { title: string; sub?: string; selected: boolean; onPress: () => void; icon?: React.ComponentProps<typeof Ionicons>['name'] }) {
   const t = useTheme();
+  const reduceT = useReduceTransparency();
   return (
     <Pressable
       accessibilityRole="radio"
       accessibilityState={{ selected }}
       accessibilityLabel={title}
-      onPress={onPress}
-      style={{
+      onPress={() => {
+        if (!selected) haptic.select();
+        onPress();
+      }}
+      style={({ pressed }) => ({
         minHeight: 56,
         padding: 14,
         borderRadius: t.radius,
-        borderWidth: 2,
+        borderWidth: 1,
+        borderTopWidth: 1,
+        borderBottomWidth: selected ? (pressed ? 1 : 3) : 1,
         borderColor: selected ? t.primary : t.border,
-        backgroundColor: selected ? alpha(t.primary, 0.08) : t.surface,
+        borderTopColor: selected ? mix(t.primary, '#FFFFFF', t.dark ? 0.35 : 0.5) : t.border,
+        borderBottomColor: selected ? mix(t.primary, '#000000', 0.62) : t.border,
+        backgroundColor: selected ? (reduceT ? mix(t.primary, t.surface, 0.16) : alpha(t.primary, t.dark ? 0.16 : 0.08)) : glassPaint({ dark: t.dark, bg: t.bg, surface: t.surface, reduceTransparency: reduceT }),
+        transform: [{ translateY: pressed && selected ? 2 : 0 }],
         flexDirection: 'row',
         alignItems: 'center',
         gap: 12,
-      }}
+      })}
     >
       {icon ? <Ionicons name={icon} size={22} color={selected ? t.primary : t.textMuted} /> : null}
       <View style={{ flex: 1 }}>
@@ -48,7 +61,19 @@ export default function Onboarding() {
 
   return (
     <Screen>
-      <View style={{ alignItems: 'center', gap: 4, marginTop: 24 }}>
+      <Row style={{ justifyContent: 'flex-end', marginBottom: -8 }}>
+        <Button
+          kind="ghost"
+          small
+          title={pick({ fr: 'Passer', ar: 'تَخَطَّ', en: 'Skip' })}
+          a11y={pick({ fr: 'Passer l’introduction', ar: 'تَخَطَّ', en: 'Skip the introduction' })}
+          onPress={() => {
+            finishOnboarding({ lang, startUnit: 1, dailyGoal: 50 });
+            router.replace('/learn');
+          }}
+        />
+      </Row>
+      <View style={{ alignItems: 'center', gap: 4, marginTop: 8 }}>
         <View style={{ width: 84, height: 84, borderRadius: 42, backgroundColor: t.primary, alignItems: 'center', justifyContent: 'center' }}>
           <AR size={40} center color={t.primaryText} weight="700">ع</AR>
         </View>
@@ -61,7 +86,7 @@ export default function Onboarding() {
 
       <Row gap={6} style={{ justifyContent: 'center' }}>
         {[0, 1, 2].map((i) => (
-          <View key={i} style={{ width: i === step ? 24 : 8, height: 8, borderRadius: 4, backgroundColor: i <= step ? t.primary : t.border }} />
+          <View key={i} accessibilityElementsHidden importantForAccessibility="no" style={{ width: i === step ? 24 : 8, height: 8, borderRadius: 4, backgroundColor: i <= step ? t.primary : t.border }} />
         ))}
       </Row>
 

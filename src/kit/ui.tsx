@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import {
+  AccessibilityInfo,
   ActivityIndicator,
   Animated,
   Modal,
@@ -17,11 +18,17 @@ import {
   View,
   ViewStyle,
 } from 'react-native';
+import { announce, useLargeText as useLargeTextBase, useReduceTransparency } from './a11y';
+import { bestInk, ensureContrast, mix, TOAST } from './contrast';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { formatDigits } from './format';
 import { useOnline } from './net';
-import { alpha, useTheme } from './theme';
+import { alpha, useTheme, type Palette } from './theme';
+import { haptic } from './haptics';
+import { toastsMuted } from './quiet';
+import { useEntrance, usePressScale, useSystemReduceMotion } from './motion';
 import { TYPE } from '@/theme';
+import { SPACE, TYPE_SCALE, buttonChrome, panelChrome, washPaint } from './verre';
 import { useKeyFocus } from '@/lib/useKeyFocus';
 import { useShell } from '@/lib/useShell';
 
@@ -36,18 +43,59 @@ function dig(node: React.ReactNode, style: 'latn' | 'arab'): React.ReactNode {
 export type IconName = React.ComponentProps<typeof Ionicons>['name'];
 export { Ionicons };
 
+/* ---------- Finition : profondeur, mouvement, encre ---------- */
+/** Réduire les animations : réglage de l’app ou préférence système. */
+export function useReduceMotion(): boolean {
+  const t = useTheme();
+  const sys = useSystemReduceMotion();
+  return t.reduceMotion || sys;
+}
+
+/** Texte agrandi (Dynamic Type × réglage de l’app) : on retire les coupures et on empile. */
+export function useLargeText(): boolean {
+  const t = useTheme();
+  return useLargeTextBase(t.fontScale);
+}
+
+/**
+ * Fond teinté : voile translucide par défaut, couleur pleine équivalente
+ * quand « Réduire la transparence » est activé (iOS).
+ */
+export function useTint(): (c: string, a: number, over?: string) => string {
+  const t = useTheme();
+  const solid = useReduceTransparency();
+  return (c, a, over) => (solid ? mix(c, over ?? t.surface, a) : alpha(c, a));
+}
+
+/** Couleur de marque lisible (AA) pour le texte et les icônes. */
+export function inkOf(t: Palette): string {
+  return t.primary;
+}
+
+/** Ombre douce, plus discrète en mode sombre (on éclaire plutôt la bordure). */
+export function elevation(t: Palette, level: 1 | 2 | 3 = 1): ViewStyle {
+  const k = { 1: [0.06, 10, 3, 1], 2: [0.09, 16, 6, 3], 3: [0.16, 28, 12, 8] }[level];
+  return {
+    shadowColor: '#000000',
+    shadowOpacity: t.dark ? k[0] * 3 : k[0],
+    shadowRadius: k[1],
+    shadowOffset: { width: 0, height: k[2] },
+    elevation: k[3],
+  };
+}
+
 /* ---------- Typo ---------- */
 type TVariant = 'display' | 'h1' | 'h2' | 'h3' | 'body' | 'small' | 'caption' | 'label' | 'mono';
 const sizes: Record<TVariant, { fs: number; fw: TextStyle['fontWeight']; lh?: number }> = {
-  display: { fs: 32, fw: '800', lh: 38 },
-  h1: { fs: 24, fw: '800', lh: 30 },
-  h2: { fs: 19, fw: '700', lh: 25 },
-  h3: { fs: 16, fw: '700', lh: 22 },
-  body: { fs: 15, fw: '400', lh: 21 },
-  small: { fs: 13, fw: '400', lh: 18 },
-  caption: { fs: 11.5, fw: '600', lh: 15 },
-  label: { fs: 12, fw: '700', lh: 16 },
-  mono: { fs: 13, fw: '500', lh: 18 },
+  display: { fs: TYPE_SCALE.display, fw: '800', lh: 38 },
+  h1: { fs: TYPE_SCALE.h1, fw: '800', lh: 30 },
+  h2: { fs: TYPE_SCALE.h2, fw: '700', lh: 25 },
+  h3: { fs: TYPE_SCALE.h3, fw: '700', lh: 22 },
+  body: { fs: TYPE_SCALE.body, fw: '400', lh: 21 },
+  small: { fs: TYPE_SCALE.small, fw: '400', lh: 18 },
+  caption: { fs: TYPE_SCALE.caption, fw: '600', lh: 15 },
+  label: { fs: TYPE_SCALE.label, fw: '700', lh: 16 },
+  mono: { fs: TYPE_SCALE.mono, fw: '500', lh: 18 },
 };
 
 export function T({
@@ -70,10 +118,11 @@ export function T({
   selectable?: boolean;
 }) {
   const t = useTheme();
+  const large = useLargeText();
   const s = sizes[v];
   return (
     <Text
-      numberOfLines={numberOfLines}
+      numberOfLines={large ? undefined : numberOfLines}
       selectable={selectable}
       style={[
         {
@@ -81,8 +130,10 @@ export function T({
           fontWeight: s.fw,
           lineHeight: s.lh ? s.lh * t.fontScale : undefined,
           color: color ?? (muted ? t.textMuted : t.text),
-          textAlign: center ? 'center' : undefined,
-          letterSpacing: v === 'caption' || v === 'label' ? 0.4 : undefined,
+          textAlign: center ? 'center' : t.rtl ? 'right' : undefined,
+          writingDirection: t.rtl ? 'rtl' : undefined,
+          // Pas d’espacement des lettres en arabe : il casse les liaisons.
+          letterSpacing: t.rtl ? undefined : v === 'caption' || v === 'label' ? 0.4 : !t.rtl && (v === 'display' || v === 'h1') ? -0.4 : !t.rtl && v === 'h2' ? -0.2 : undefined,
           textTransform: v === 'caption' ? 'uppercase' : undefined,
           fontFamily: v === 'mono' ? Platform.select({ ios: 'Menlo', android: 'monospace', default: 'ui-monospace, Menlo, monospace' }) : undefined,
         },
@@ -95,6 +146,19 @@ export function T({
 }
 
 /* ---------- Layout ---------- */
+/** Lavis derrière le contenu. Absent sur la télé et si « Réduire la transparence ». */
+export function GlassBackdrop() {
+  const t = useTheme();
+  const reduceT = useReduceTransparency();
+  if (reduceT || Platform.isTV === true) return null;
+  return (
+    <View pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={StyleSheet.absoluteFill}>
+      <View style={{ position: 'absolute', top: -140, end: -70, width: 300, height: 300, borderRadius: 150, backgroundColor: washPaint(t.primary, t.dark) }} />
+      <View style={{ position: 'absolute', bottom: 20, start: -80, width: 240, height: 240, borderRadius: 120, backgroundColor: washPaint(t.accent, t.dark) }} />
+    </View>
+  );
+}
+
 export function Screen({
   children,
   scroll = true,
@@ -112,10 +176,11 @@ export function Screen({
   const insets = useSafeAreaInsets();
   const { contentMax } = useShell();
   const inner = (
-    <View style={{ width: '100%', maxWidth: contentMax, alignSelf: 'center', padding: padded ? 16 : 0, gap: 14, paddingBottom: 40 }}>{children}</View>
+    <View style={{ width: '100%', maxWidth: contentMax, alignSelf: 'center', padding: padded ? SPACE.md : 0, gap: SPACE.sm, paddingBottom: SPACE.xxl + SPACE.xs }}>{children}</View>
   );
   return (
     <View style={{ flex: 1, backgroundColor: t.bg, paddingTop: insets.top }}>
+      <GlassBackdrop />
       {header}
       {scroll ? (
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ flexGrow: 1 }} keyboardShouldPersistTaps="handled">
@@ -132,10 +197,10 @@ export function Screen({
 export function Header({ title, subtitle, right, left }: { title: string; subtitle?: string; right?: React.ReactNode; left?: React.ReactNode }) {
   const { contentMax } = useShell();
   return (
-    <View style={{ width: '100%', maxWidth: contentMax, alignSelf: 'center', paddingHorizontal: 16, paddingTop: 12, paddingBottom: 4, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+    <View style={{ width: '100%', maxWidth: contentMax, alignSelf: 'center', paddingHorizontal: SPACE.md, paddingTop: SPACE.md, paddingBottom: SPACE.xxs + 2, flexDirection: 'row', alignItems: 'center', gap: SPACE.xs + 2 }}>
       {left}
       <View style={{ flex: 1 }}>
-        <T v="h1" numberOfLines={1}>
+        <T v="h1" numberOfLines={2}>
           {title}
         </T>
         {subtitle ? (
@@ -174,42 +239,51 @@ function pointer(state: { pressed: boolean }): { pressed: boolean; hovered: bool
   return { pressed: state.pressed, hovered: Boolean((state as { hovered?: boolean }).hovered) };
 }
 
-function pointStyle(state: { pressed: boolean }, color: string, focused: boolean): ViewStyle | null {
-  const hover = pointer(state);
-  if (!hover.hovered && !focused) return null;
-  return {
-    borderColor: color,
-    borderWidth: 2,
-    shadowColor: color,
-    shadowOpacity: 0.2,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 2 },
-  };
-}
-
 export function Card({ children, style, onPress, accent, a11y }: { children: React.ReactNode; style?: StyleProp<ViewStyle>; onPress?: () => void; accent?: string; a11y?: string }) {
   const t = useTheme();
+  const reduce = useReduceMotion();
+  const press = usePressScale(reduce, 0.985);
+  const reduceT = useReduceTransparency();
+  const panel = panelChrome({
+    dark: t.dark,
+    bg: t.bg,
+    surface: t.surface,
+    border: t.border,
+    radius: t.radius,
+    reduceTransparency: reduceT,
+    tv: Platform.isTV === true,
+  });
   const base: ViewStyle = {
-    backgroundColor: t.surface,
-    borderRadius: t.radius,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: t.border,
-    padding: 14,
-    gap: 8,
-    borderStartWidth: accent ? 3 : StyleSheet.hairlineWidth,
-    borderStartColor: accent ?? t.border,
+    ...panel,
+    padding: SPACE.md - 2,
+    gap: SPACE.xs,
+    borderStartWidth: accent ? 3 : 1,
+    borderStartColor: accent ?? panel.borderColor,
   };
   const focused = useKeyFocus(!!onPress, onPress);
   if (onPress)
     return (
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={a11y}
-        onPress={onPress}
-        style={(state) => [base, pointStyle(state, t.primary, focused), { opacity: state.pressed ? 0.85 : 1 }, style]}
-      >
-        {children}
-      </Pressable>
+      <Animated.View style={{ transform: [{ scale: press.scale }] }}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={a11y}
+          onPress={() => {
+            haptic.select();
+            onPress();
+          }}
+          onPressIn={press.onPressIn}
+          onPressOut={press.onPressOut}
+          style={(state) => [
+            base,
+            pointer(state).hovered || focused ? { boxShadow: `${panel.boxShadow}, 0 0 0 2px ${t.primary}` } : null,
+            state.pressed ? { transform: [{ translateY: reduce ? 0 : 1 }] } : null,
+            { opacity: state.pressed ? 0.96 : 1 },
+            style,
+          ]}
+        >
+          {children}
+        </Pressable>
+      </Animated.View>
     );
   return <View style={[base, style]}>{children}</View>;
 }
@@ -234,6 +308,12 @@ export function Divider() {
 }
 
 /* ---------- Boutons ---------- */
+/** Le flex d’un bouton (`style={{ flex: 1 }}`) doit porter sur l’enveloppe animée. */
+function flexOf(style: StyleProp<ViewStyle>): ViewStyle | null {
+  const f = StyleSheet.flatten(style) as ViewStyle | undefined;
+  if (!f || (f.flex === undefined && f.flexGrow === undefined && f.flexBasis === undefined)) return null;
+  return { flex: f.flex, flexGrow: f.flexGrow, flexBasis: f.flexBasis };
+}
 type BtnKind = 'primary' | 'secondary' | 'ghost' | 'danger' | 'success';
 export function Button({
   title,
@@ -259,39 +339,60 @@ export function Button({
   a11y?: string;
 }) {
   const t = useTheme();
-  const bg = { primary: t.primary, secondary: t.surface2, ghost: 'transparent', danger: t.danger, success: t.success }[kind];
+  const reduce = useReduceMotion();
+  const press = usePressScale(reduce || !!disabled || !!loading);
+  const face = { primary: t.primary, secondary: t.surface2, ghost: t.primary, danger: t.danger, success: t.success }[kind];
   const fg = { primary: t.primaryText, secondary: t.text, ghost: t.primary, danger: t.onDanger, success: t.onSuccess }[kind];
   const active = !disabled && !loading && !!onPress;
   const focused = useKeyFocus(active, onPress);
   return (
+    <Animated.View style={[{ transform: [{ scale: press.scale }], alignSelf: full ? 'stretch' : 'auto' }, flexOf(style)]}>
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={a11y ?? title}
-      accessibilityState={{ disabled: !!disabled }}
+      accessibilityState={{ disabled: !!disabled, busy: !!loading }}
       disabled={disabled || loading}
-      onPress={onPress}
+      onPress={
+        onPress
+          ? () => {
+              if (kind === 'danger') haptic.warning();
+              else haptic.tap();
+              onPress();
+            }
+          : undefined
+      }
+      onPressIn={press.onPressIn}
+      onPressOut={press.onPressOut}
       style={(state) => [
         {
           minHeight: small ? TYPE.minTarget : 48,
-          paddingHorizontal: small ? 12 : 18,
+          paddingHorizontal: small ? SPACE.sm : SPACE.lg - 2,
+          paddingVertical: SPACE.xs,
+          minWidth: TYPE.minTarget,
           borderRadius: t.radius - 2,
-          backgroundColor: bg,
-          borderWidth: kind === 'secondary' || kind === 'ghost' ? StyleSheet.hairlineWidth : 0,
-          borderColor: kind === 'ghost' ? 'transparent' : t.border,
           alignItems: 'center',
           justifyContent: 'center',
           flexDirection: 'row',
-          gap: 8,
-          opacity: disabled ? 0.45 : state.pressed ? 0.8 : 1,
+          gap: SPACE.xs,
+          opacity: disabled ? 0.45 : 1,
           alignSelf: full ? 'stretch' : 'auto',
+          ...buttonChrome({
+            face,
+            pressed: state.pressed,
+            dark: t.dark,
+            flat: kind === 'ghost',
+            disabled: !!disabled || !!loading,
+            ring: focused || pointer(state).hovered ? t.accent : null,
+          }),
         },
-        pointStyle(state, t.accent, focused),
         style,
+        flexOf(style) ? { flex: undefined, flexGrow: undefined, flexBasis: undefined } : null,
       ]}
     >
       {loading ? <ActivityIndicator color={fg} /> : icon ? <Ionicons name={icon} size={small ? 16 : 18} color={fg} /> : null}
-      <Text style={{ color: fg, fontWeight: '700', fontSize: (small ? 13 : 15) * t.fontScale }}>{formatDigits(title, t.digits)}</Text>
+      <Text style={{ color: fg, fontWeight: '700', fontSize: (small ? 13 : 15) * t.fontScale, flexShrink: 1, textAlign: 'center' }}>{formatDigits(title, t.digits)}</Text>
     </Pressable>
+    </Animated.View>
   );
 }
 
@@ -302,17 +403,27 @@ export function IconButton({ icon, onPress, a11y, color, size = 22 }: { icon: Ic
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={a11y}
-      onPress={onPress}
+      onPress={
+        onPress
+          ? () => {
+              haptic.select();
+              onPress();
+            }
+          : undefined
+      }
       hitSlop={6}
       style={(state) => ({
-        width: 44,
-        height: 44,
+        width: TYPE.minTarget,
+        height: TYPE.minTarget,
         borderRadius: 22,
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: state.pressed || pointer(state).hovered || focused ? t.surface2 : 'transparent',
-        borderWidth: focused ? 2 : 0,
-        borderColor: t.accent,
+        ...buttonChrome({
+          face: t.surface,
+          pressed: state.pressed,
+          dark: t.dark,
+          ring: focused || pointer(state).hovered ? t.accent : null,
+        }),
       })}
     >
       <Ionicons name={icon} size={size} color={color ?? t.text} />
@@ -322,73 +433,101 @@ export function IconButton({ icon, onPress, a11y, color, size = 22 }: { icon: Ic
 
 export function Chip({ label, selected, onPress, color, icon }: { label: string; selected?: boolean; onPress?: () => void; color?: string; icon?: IconName }) {
   const t = useTheme();
+  const tint = useTint();
   const c = color ?? t.primary;
   const focused = useKeyFocus(!!onPress, onPress);
+  const ink = ensureContrast(ensureContrast(c, mix(c, t.surface, 0.16), t.text), mix(c, t.bg, 0.16), t.text);
   return (
     <Pressable
       accessibilityRole="button"
+      accessibilityLabel={label}
       accessibilityState={{ selected: !!selected }}
-      onPress={onPress}
+      onPress={
+        onPress
+          ? () => {
+              haptic.select();
+              onPress();
+            }
+          : undefined
+      }
       style={(state) => ({
         minHeight: TYPE.minTarget,
+        minWidth: TYPE.minTarget,
+        maxWidth: '100%',
         paddingHorizontal: 12,
+        paddingVertical: 6,
         borderRadius: 18,
         borderWidth: focused || pointer(state).hovered ? 2 : 1,
         borderColor: selected || focused || pointer(state).hovered ? c : t.border,
-        backgroundColor: selected ? alpha(c, 0.16) : pointer(state).hovered ? alpha(c, 0.08) : t.surface,
+        backgroundColor: selected ? tint(c, 0.16) : pointer(state).hovered ? tint(c, 0.08) : t.surface,
         flexDirection: 'row',
         alignItems: 'center',
         gap: 6,
       })}
     >
-      {icon ? <Ionicons name={icon} size={14} color={selected ? c : t.textMuted} /> : null}
-      <Text style={{ color: selected ? c : t.text, fontWeight: selected ? '700' : '500', fontSize: 13 * t.fontScale }}>{formatDigits(label, t.digits)}</Text>
+      {icon ? <Ionicons name={icon} size={14} color={selected ? ink : t.textMuted} /> : null}
+      <Text style={{ color: selected ? ink : t.text, fontWeight: selected ? '700' : '500', fontSize: 13 * t.fontScale, flexShrink: 1 }}>{formatDigits(label, t.digits)}</Text>
     </Pressable>
   );
 }
 
 export function Badge({ label, color, icon }: { label: string; color?: string; icon?: IconName }) {
   const t = useTheme();
+  const tint = useTint();
   const c = color ?? t.textMuted;
+  const ink = ensureContrast(c, mix(c, t.surface, 0.15), t.text);
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10, backgroundColor: alpha(c, 0.15) }}>
-      {icon ? <Ionicons name={icon} size={12} color={c} /> : null}
-      <Text style={{ color: c, fontSize: 11 * t.fontScale, fontWeight: '700' }}>{formatDigits(label, t.digits)}</Text>
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10, maxWidth: '100%', backgroundColor: tint(c, 0.15) }}>
+      {icon ? <Ionicons name={icon} size={12} color={ink} /> : null}
+      <Text style={{ color: ink, fontSize: 11 * t.fontScale, fontWeight: '700', flexShrink: 1 }}>{formatDigits(label, t.digits)}</Text>
     </View>
   );
 }
 
 export function Segmented<K extends string>({ options, value, onChange }: { options: { key: K; label: string }[]; value: K; onChange: (k: K) => void }) {
   const t = useTheme();
+  const large = useLargeText();
   return (
-    <View style={{ flexDirection: 'row', backgroundColor: t.surface2, borderRadius: t.radius, padding: 3 }}>
+    <View accessibilityRole="tablist" style={{ flexDirection: large ? 'column' : 'row', backgroundColor: t.surface2, borderRadius: t.radius, padding: 3 }}>
       {options.map((o) => (
-        <SegmentChoice key={o.key} label={o.label} on={o.key === value} onPress={() => onChange(o.key)} />
+        <SegmentChoice
+          key={o.key}
+          label={o.label}
+          on={o.key === value}
+          large={large}
+          onPress={() => {
+            if (o.key !== value) haptic.select();
+            onChange(o.key);
+          }}
+        />
       ))}
     </View>
   );
 }
 
-function SegmentChoice({ label, on, onPress }: { label: string; on: boolean; onPress: () => void }) {
+function SegmentChoice({ label, on, onPress, large }: { label: string; on: boolean; onPress: () => void; large?: boolean }) {
   const t = useTheme();
   const focused = useKeyFocus(true, onPress);
   return (
     <Pressable
-      accessibilityRole="button"
+      accessibilityRole="tab"
+      accessibilityLabel={label}
       accessibilityState={{ selected: on }}
       onPress={onPress}
       style={(state) => ({
-        flex: 1,
+        flex: large ? undefined : 1,
         minHeight: TYPE.minTarget,
+        paddingHorizontal: 8,
         borderRadius: t.radius - 3,
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: on ? t.surface : pointer(state).hovered || focused ? alpha(t.primary, 0.08) : 'transparent',
-        borderWidth: focused ? 2 : 0,
-        borderColor: t.accent,
+        backgroundColor: on ? undefined : pointer(state).hovered || focused ? alpha(t.primary, 0.08) : 'transparent',
+        ...(on
+          ? buttonChrome({ face: t.surface, pressed: state.pressed, dark: t.dark, ring: focused ? t.accent : null })
+          : { borderWidth: focused ? 2 : 0, borderColor: t.accent }),
       })}
     >
-      <Text style={{ color: on ? t.text : t.textMuted, fontWeight: on ? '700' : '500', fontSize: 13 * t.fontScale }}>{formatDigits(label, t.digits)}</Text>
+      <Text style={{ color: on ? t.text : t.textMuted, fontWeight: on ? '700' : '500', fontSize: 13 * t.fontScale, textAlign: 'center' }}>{formatDigits(label, t.digits)}</Text>
     </Pressable>
   );
 }
@@ -404,6 +543,7 @@ export function Field({ label, hint, error, ...props }: TextInputProps & { label
       <TextInput
         placeholderTextColor={t.textMuted}
         accessibilityLabel={label}
+        accessibilityHint={error ?? hint}
         {...props}
         style={[
           {
@@ -422,9 +562,11 @@ export function Field({ label, hint, error, ...props }: TextInputProps & { label
         ]}
       />
       {error ? (
-        <T v="small" color={t.danger}>
-          {error}
-        </T>
+        <View accessibilityLiveRegion="polite">
+          <T v="small" color={t.danger}>
+            {error}
+          </T>
+        </View>
       ) : hint ? (
         <T v="small" muted>
           {hint}
@@ -446,7 +588,10 @@ export function ToggleRow({ label, sub, value, onChange, disabled }: { label: st
           </T>
         ) : null}
       </View>
-      <Switch accessibilityLabel={label} value={value} onValueChange={onChange} disabled={disabled} trackColor={{ true: t.primary, false: t.surface2 }} thumbColor="#fff" />
+      <Switch accessibilityLabel={label} accessibilityHint={sub} accessibilityRole="switch" accessibilityState={{ checked: value, disabled: !!disabled }} value={value} onValueChange={(v) => {
+        haptic.select();
+        onChange(v);
+      }} disabled={disabled} trackColor={{ true: t.primary, false: t.surface2 }} thumbColor="#fff" />
     </Row>
   );
 }
@@ -485,11 +630,12 @@ export function ListItem({ title, sub, right, icon, iconColor, onPress }: { titl
 /* ---------- Feedback ---------- */
 export function Banner({ kind = 'info', title, text, icon, action }: { kind?: 'info' | 'warning' | 'danger' | 'success' | 'demo'; title?: string; text: string; icon?: IconName; action?: React.ReactNode }) {
   const t = useTheme();
+  const tint = useTint();
   const c = { info: t.info, warning: t.warning, danger: t.danger, success: t.success, demo: t.accent }[kind];
   const ic: IconName = icon ?? ({ info: 'information-circle', warning: 'warning', danger: 'alert-circle', success: 'checkmark-circle', demo: 'flask' } as const)[kind];
   return (
-    <View style={{ flexDirection: 'row', gap: 10, padding: 12, borderRadius: t.radius, backgroundColor: alpha(c, 0.12), borderWidth: 1, borderColor: alpha(c, 0.35) }}>
-      <Ionicons name={ic} size={20} color={c} />
+    <View style={{ flexDirection: 'row', gap: 10, padding: 12, borderRadius: t.radius, backgroundColor: tint(c, 0.12, t.bg), borderWidth: 1, borderColor: tint(c, 0.35, t.bg) }}>
+      <Ionicons name={ic} size={20} color={ensureContrast(c, mix(c, t.bg, 0.12), t.text, 3)} />
       <View style={{ flex: 1, gap: 2 }}>
         {title ? <T style={{ fontWeight: '700' }}>{title}</T> : null}
         <T v="small">{text}</T>
@@ -518,21 +664,27 @@ export function OfflineBadge({ text = 'Hors ligne — données en cache' }: { te
 
 export function EmptyState({ icon = 'sparkles', title, text, action }: { icon?: IconName; title: string; text?: string; action?: React.ReactNode }) {
   const t = useTheme();
+  const reduce = useReduceMotion();
+  const enter = useEntrance(reduce);
+  const ink = inkOf(t);
+  const tint = useTint();
   return (
-    <View style={{ alignItems: 'center', padding: 28, gap: 8 }}>
-      <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: alpha(t.primary, 0.12), alignItems: 'center', justifyContent: 'center' }}>
-        <Ionicons name={icon} size={30} color={t.primary} />
+    <Animated.View style={[{ alignItems: 'center', paddingVertical: 36, paddingHorizontal: 24, gap: 10 }, enter]}>
+      <View style={{ width: 96, height: 96, borderRadius: 48, backgroundColor: tint(t.primary, t.dark ? 0.1 : 0.07, t.bg), alignItems: 'center', justifyContent: 'center', marginBottom: 4 }}>
+        <View style={{ width: 68, height: 68, borderRadius: 34, backgroundColor: tint(t.primary, t.dark ? 0.2 : 0.14, t.bg), alignItems: 'center', justifyContent: 'center' }}>
+          <Ionicons name={icon} size={30} color={ensureContrast(ink, mix(t.primary, mix(t.primary, t.bg, t.dark ? 0.1 : 0.07), t.dark ? 0.2 : 0.14), t.text, 3)} />
+        </View>
       </View>
-      <T v="h3" center>
+      <T v="h2" center>
         {title}
       </T>
       {text ? (
-        <T v="small" muted center>
+        <T v="body" muted center style={{ maxWidth: 420 }}>
           {text}
         </T>
       ) : null}
-      {action}
-    </View>
+      {action ? <View style={{ marginTop: 6 }}>{action}</View> : null}
+    </Animated.View>
   );
 }
 
@@ -558,18 +710,30 @@ export function Skeleton({ height = 16, width = '100%', style }: { height?: numb
 
 export function Progress({ value, color, height = 8 }: { value: number; color?: string; height?: number }) {
   const t = useTheme();
+  const reduce = useReduceMotion();
   const v = Math.max(0, Math.min(1, value));
+  const w = useRef(new Animated.Value(v)).current;
+  useEffect(() => {
+    if (reduce) {
+      w.setValue(v);
+      return;
+    }
+    const a = Animated.spring(w, { toValue: v, useNativeDriver: false, damping: 20, stiffness: 160 });
+    a.start();
+    return () => a.stop();
+  }, [v, w, reduce]);
   return (
     <View accessibilityRole="progressbar" accessibilityValue={{ min: 0, max: 100, now: Math.round(v * 100) }} style={{ height, borderRadius: height / 2, backgroundColor: t.surface2, overflow: 'hidden' }}>
-      <View style={{ width: `${v * 100}%`, height: '100%', backgroundColor: color ?? t.primary, borderRadius: height / 2 }} />
+      <Animated.View style={{ width: w.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }), height: '100%', backgroundColor: color ?? t.primary, borderRadius: height / 2 }} />
     </View>
   );
 }
 
 export function Stat({ label, value, sub, color, demo }: { label: string; value: string; sub?: string; color?: string; demo?: boolean }) {
   const t = useTheme();
+  const reduceT = useReduceTransparency();
   return (
-    <View style={{ flexGrow: 1, flexBasis: 140, backgroundColor: t.surface, borderRadius: t.radius, borderWidth: StyleSheet.hairlineWidth, borderColor: t.border, padding: 12, gap: 2 }}>
+    <View style={{ flexGrow: 1, flexBasis: 140, padding: SPACE.sm, gap: 2, ...panelChrome({ dark: t.dark, bg: t.bg, surface: t.surface, border: t.border, radius: t.radius, reduceTransparency: reduceT, tv: Platform.isTV === true }) }}>
       <Row style={{ justifyContent: 'space-between' }}>
         <T v="caption" muted>
           {label}
@@ -591,10 +755,11 @@ export function Stat({ label, value, sub, color, demo }: { label: string; value:
 export function Sheet({ visible, onClose, title, children }: { visible: boolean; onClose: () => void; title: string; children: React.ReactNode }) {
   const t = useTheme();
   const insets = useSafeAreaInsets();
+  const solid = useReduceTransparency();
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable accessibilityLabel="Fermer" onPress={onClose} style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)' }} />
-      <View style={{ backgroundColor: t.bg, borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '88%', paddingBottom: insets.bottom + 12 }}>
+      <Pressable accessibilityRole="button" accessibilityLabel="Fermer" onPress={onClose} style={{ flex: 1, backgroundColor: solid ? (t.dark ? '#000000' : '#3A3A3C') : 'rgba(0,0,0,0.45)' }} />
+      <View style={{ maxHeight: '88%', paddingBottom: insets.bottom + 12, borderBottomLeftRadius: 0, borderBottomRightRadius: 0, ...panelChrome({ dark: t.dark, bg: t.bg, surface: t.surface, border: t.border, radius: 20, reduceTransparency: solid, tv: Platform.isTV === true }) }}>
         <View style={{ width: '100%', maxWidth: 820, alignSelf: 'center' }}>
           <Row style={{ padding: 16, paddingBottom: 6, justifyContent: 'space-between' }}>
             <T v="h2">{title}</T>
@@ -614,38 +779,59 @@ type Toast = { id: number; text: string; kind: 'info' | 'success' | 'error' };
 const ToastCtx = createContext<(text: string, kind?: Toast['kind']) => void>(() => {});
 export const useToast = () => useContext(ToastCtx);
 
+function ToastView({ x }: { x: Toast }) {
+  const t = useTheme();
+  const reduce = useReduceMotion();
+  const enter = useEntrance(reduce, 0, 16);
+  const bg = (t.dark ? TOAST.dark : TOAST.light).bg;
+  const fg = (t.dark ? TOAST.dark : TOAST.light).fg;
+  const tone = x.kind === 'error' ? t.danger : x.kind === 'success' ? t.success : t.info;
+  return (
+    <Animated.View
+      accessibilityLiveRegion="polite"
+      style={[
+        {
+          maxWidth: 520,
+          marginHorizontal: 16,
+          paddingVertical: 12,
+          paddingHorizontal: 14,
+          borderRadius: 16,
+          backgroundColor: bg,
+          flexDirection: 'row',
+          gap: 10,
+          alignItems: 'center',
+          ...elevation(t, 3),
+        },
+        enter,
+      ]}
+    >
+      <View style={{ width: 26, height: 26, borderRadius: 13, backgroundColor: tone, alignItems: 'center', justifyContent: 'center' }}>
+        <Ionicons name={x.kind === 'error' ? 'alert' : x.kind === 'success' ? 'checkmark' : 'information'} size={16} color={bestInk(tone)} />
+      </View>
+      <Text style={{ color: fg, fontWeight: '600', fontSize: 14 * t.fontScale, flexShrink: 1 }}>{formatDigits(x.text, t.digits)}</Text>
+    </Animated.View>
+  );
+}
+
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
-  const t = useTheme();
   const insets = useSafeAreaInsets();
   const push = useCallback((text: string, kind: Toast['kind'] = 'info') => {
+    // Mode Focus : toasts en sourdine (ni affichage, ni annonce, ni vibration).
+    if (toastsMuted()) return;
     const id = Date.now() + Math.random();
-    setToasts((x) => [...x, { id, text, kind }]);
-    setTimeout(() => setToasts((x) => x.filter((y) => y.id !== id)), 3200);
+    if (kind === 'success') haptic.success();
+    else if (kind === 'error') haptic.error();
+    announce(text);
+    setToasts((x) => [...x.slice(-2), { id, text, kind }]);
+    setTimeout(() => setToasts((x) => x.filter((y) => y.id !== id)), kind === 'error' ? 4200 : 3200);
   }, []);
   return (
     <ToastCtx.Provider value={push}>
       {children}
       <View pointerEvents="none" style={{ position: 'absolute', left: 0, right: 0, bottom: insets.bottom + 72, alignItems: 'center', gap: 8 }}>
         {toasts.map((x) => (
-          <View
-            key={x.id}
-            accessibilityLiveRegion="polite"
-            style={{
-              maxWidth: 520,
-              marginHorizontal: 16,
-              paddingVertical: 10,
-              paddingHorizontal: 14,
-              borderRadius: 12,
-              backgroundColor: x.kind === 'error' ? t.danger : x.kind === 'success' ? t.success : t.dark ? '#f2f2f2' : '#1d1d1f',
-              flexDirection: 'row',
-              gap: 8,
-              alignItems: 'center',
-            }}
-          >
-            <Ionicons name={x.kind === 'error' ? 'alert-circle' : x.kind === 'success' ? 'checkmark-circle' : 'information-circle'} size={18} color={x.kind === 'info' && t.dark ? '#111' : '#fff'} />
-            <Text style={{ color: x.kind === 'info' && t.dark ? '#111' : '#fff', fontWeight: '600' }}>{x.text}</Text>
-          </View>
+          <ToastView key={x.id} x={x} />
         ))}
       </View>
     </ToastCtx.Provider>
@@ -725,13 +911,27 @@ export function BootGate({
         <T v="h2" center>
           {appName}
         </T>
-        <Skeleton height={22} />
-        <Skeleton height={90} />
-        <Skeleton height={90} />
+        <View accessible accessibilityRole="progressbar" accessibilityLabel={appName} style={{ gap: 14 }}>
+          <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
+            <Skeleton height={44} width={44} style={{ borderRadius: 22 }} />
+            <View style={{ flex: 1, gap: 8 }}>
+              <Skeleton height={14} width="60%" />
+              <Skeleton height={12} width="40%" />
+            </View>
+          </View>
+          <Skeleton height={96} style={{ borderRadius: t.radius }} />
+          <Skeleton height={96} style={{ borderRadius: t.radius }} />
+          <Skeleton height={64} width="80%" style={{ borderRadius: t.radius }} />
+        </View>
       </View>
     );
   return (
     <View style={{ flex: 1, backgroundColor: t.bg, padding: 24, gap: 14, justifyContent: 'center', maxWidth: 520, width: '100%', alignSelf: 'center' }}>
+      <View style={{ alignItems: 'center', marginBottom: 4 }}>
+        <View style={{ width: 72, height: 72, borderRadius: 36, backgroundColor: alpha(t.warning, t.dark ? 0.2 : 0.14), alignItems: 'center', justifyContent: 'center' }}>
+          <Ionicons name="cloud-offline-outline" size={32} color={t.text} />
+        </View>
+      </View>
       <Banner kind="warning" title={copy.title} text={copy.text} />
       <Button title={copy.retry} icon="refresh" onPress={run} />
       <Button

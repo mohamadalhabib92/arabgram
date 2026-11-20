@@ -10,6 +10,7 @@ import { unitInk } from '@/theme';
 import { showTutorScreen } from '@/config';
 import { useI18n } from '@/lib/i18n';
 import { dueItems, nextLesson, store, streak, today, unitProgress, unitUnlocked } from '@/state';
+import { useFocus, useFocusText } from '@/kit/focusApp';
 
 export default function Learn() {
   const p = useTheme();
@@ -29,6 +30,8 @@ export default function Learn() {
     if (!needle) return true;
     return `${u.id} ${u.ar} ${u.fr} ${u.en}`.toLowerCase().includes(needle);
   });
+  const { screen: ftx } = useFocusText();
+  const focusActive = !!useFocus().data.active;
 
   return (
     <Screen
@@ -81,6 +84,18 @@ export default function Learn() {
         <T v="caption" color={p.accent}>{t('book')}</T>
         <T v="h3">{pick({ fr: 'Lire l’ebook dans l’app', ar: 'اِقْرَأِ الكِتَابَ فِي التَّطْبِيق', en: 'Read the ebook in the app' })}</T>
         <T v="small" muted>{pick({ fr: 'Méthode, six chapitres, quiz au toucher. Le PDF se partage vers une liseuse.', ar: 'سِتَّةُ فُصُولٍ وَاِخْتِبَارَات', en: 'Method, six chapters, tap-to-check quizzes. Share the PDF to a reader.' })}</T>
+      </Card>
+
+      {/* Mode Focus : entrée depuis Apprendre (session de 10 à 30 min). */}
+      <Card onPress={() => router.push('/focus')} a11y={ftx.entryA11y}>
+        <Row gap={12}>
+          <Ionicons name="timer-outline" size={24} color={p.primary} />
+          <View style={{ flex: 1 }}>
+            <T v="label">{focusActive ? ftx.activeTitle : ftx.entryTitle}</T>
+            <T v="small" muted>{focusActive ? ftx.resume : ftx.entryText}</T>
+          </View>
+          <Ionicons name={lang === 'ar' ? 'chevron-back' : 'chevron-forward'} size={18} color={p.textMuted} />
+        </Row>
       </Card>
 
       {due > 0 ? (

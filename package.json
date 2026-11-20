@@ -11,6 +11,8 @@
     "expo-asset": "~58.0.20",
     "expo-constants": "~58.0.13",
     "expo-font": "~58.0.10",
+    "expo-haptics": "~58.0.7",
+    "expo-keep-awake": "~58.0.3",
     "expo-linking": "~58.0.14",
     "expo-router": "~58.0.26",
     "expo-sharing": "~58.0.22",
@@ -36,7 +38,7 @@
     "web": "expo start --web",
     "build:web": "expo export -p web && node scripts/pwa.mjs",
     "typecheck": "tsc --noEmit",
-    "test": "node --experimental-strip-types --import ./scripts/register-alias.mjs --test src/persist.test.ts src/book.test.ts src/grammar.test.ts src/mac.test.ts && node scripts/test-tv.mjs",
+    "test": "node --experimental-strip-types --import ./scripts/register-alias.mjs --test src/persist.test.ts src/book.test.ts src/grammar.test.ts src/mac.test.ts src/a11y.test.ts src/focus.test.ts src/verre.test.ts && node scripts/a11y-scan.mjs src && node scripts/test-tv.mjs",
     "eas-build-pre-install": "node scripts/eas-tv-preinstall.mjs",
     "eas-build-post-install": "node scripts/eas-tv-preinstall.mjs --check-installed",
     "serve:web": "node scripts/serve.mjs"

@@ -2,8 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { ScrollView, View, useWindowDimensions } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useReduceTransparency } from '@/kit/a11y';
 import { useTheme } from '@/kit/theme';
-import { Button, Chip, EmptyState, IconButton, Row, T } from '@/kit/ui';
+import { Button, Chip, EmptyState, GlassBackdrop, IconButton, Row, T } from '@/kit/ui';
+import { glassPaint } from '@/kit/verre';
 import { BookBody, PdfButton } from '@/components/BookBlocks';
 import { bookPart, bookParts, resolveSection } from '@/data/book';
 import { useI18n } from '@/lib/i18n';
@@ -13,6 +15,7 @@ export default function EbookScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const part = bookPart(String(id));
   const p = useTheme();
+  const reduceT = useReduceTransparency();
   const insets = useSafeAreaInsets();
   const { lang, t, pick } = useI18n();
   const width = useWindowDimensions().width;
@@ -31,6 +34,7 @@ export default function EbookScreen() {
   if (!part) {
     return (
       <View style={{ flex: 1, backgroundColor: p.bg, paddingTop: insets.top }}>
+        <GlassBackdrop />
         <EmptyState
           icon="help-circle-outline"
           title={pick({ fr: 'Chapitre introuvable', ar: 'الفَصْلُ غَيْرُ مَوْجُود', en: 'Chapter not found' })}
@@ -62,6 +66,7 @@ export default function EbookScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: p.bg, paddingTop: insets.top }}>
+      <GlassBackdrop />
       <View style={{ width: '100%', maxWidth: wide ? 1100 : 820, alignSelf: 'center', paddingHorizontal: 8, flexDirection: 'row', alignItems: 'center', gap: 4 }}>
         <IconButton icon={lang === 'ar' ? 'arrow-forward' : 'arrow-back'} a11y={t('back')} onPress={() => (router.canGoBack() ? router.back() : router.replace('/book'))} />
         <View style={{ flex: 1 }} accessibilityRole="header">
@@ -97,7 +102,7 @@ export default function EbookScreen() {
         </ScrollView>
       </View>
 
-      <View style={{ borderTopWidth: 1, borderTopColor: p.border, backgroundColor: p.surface, paddingHorizontal: 12, paddingTop: 8, paddingBottom: Math.max(insets.bottom, 8) }}>
+      <View style={{ borderTopWidth: 1, borderTopColor: p.border, backgroundColor: glassPaint({ dark: p.dark, bg: p.bg, surface: p.surface, reduceTransparency: reduceT }), paddingHorizontal: 12, paddingTop: 8, paddingBottom: Math.max(insets.bottom, 8) }}>
         <Row style={{ width: '100%', maxWidth: wide ? 1100 : 820, alignSelf: 'center' }}>
           <View style={{ flex: 1 }}>
             {prev ? <Button kind="secondary" title={pick({ fr: 'Précédent', ar: 'السَّابِق', en: 'Previous' })} onPress={() => choose(prev.id)} /> : null}

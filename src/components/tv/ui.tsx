@@ -1,8 +1,13 @@
 import React, { createContext, useContext, useRef, useState } from 'react';
 import { Platform, Pressable, ScrollView, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 import * as ReactNative from 'react-native';
+import { useReduceTransparency } from '@/kit/a11y';
+import { mix } from '@/kit/contrast';
 import { useTheme } from '@/kit/theme';
+import { panelChrome } from '@/kit/verre';
 import { arabicFamily } from '@/lib/fonts';
+
+const TvOn = createContext(false);
 
 /** Marges sûres à 1920×1080 : ~90 px sur les côtés, ~60 px en haut et en bas. */
 export const TV_SAFE = { paddingHorizontal: 90, paddingTop: 60, paddingBottom: 60 };
@@ -37,12 +42,15 @@ export function TvScreen({ children }: { children: React.ReactNode }) {
 
 export function TvTitle({ children }: { children: React.ReactNode }) {
   const theme = useTheme();
-  return <Text style={{ color: theme.text, fontSize: 48, fontWeight: '800', letterSpacing: -0.4 }}>{children}</Text>;
+  const on = useContext(TvOn);
+  return <Text style={{ color: on ? theme.primaryText : theme.text, fontSize: 48, fontWeight: '800', letterSpacing: -0.4 }}>{children}</Text>;
 }
 
 export function TvMuted({ children }: { children: React.ReactNode }) {
   const theme = useTheme();
-  return <Text style={{ color: theme.textMuted, fontSize: 26, lineHeight: 36, marginTop: 10 }}>{children}</Text>;
+  const on = useContext(TvOn);
+  const color = on ? mix(theme.primaryText, theme.primary, 0.82) : theme.textMuted;
+  return <Text style={{ color, fontSize: 26, lineHeight: 36, marginTop: 10 }}>{children}</Text>;
 }
 
 export function TvArabic({ children, size = 56 }: { children: string; size?: number }) {
@@ -86,9 +94,19 @@ export function TvFocus({
   style?: StyleProp<ViewStyle>;
 }) {
   const theme = useTheme();
+  const reduceT = useReduceTransparency();
   const [focused, setFocused] = useState(false);
   const y = useRef(0);
   const scroll = useContext(ScrollTo);
+  const panel = panelChrome({
+    dark: theme.dark,
+    bg: theme.bg,
+    surface: theme.surface,
+    border: theme.border,
+    radius: 22,
+    reduceTransparency: reduceT,
+    tv: true,
+  });
   return (
     <Pressable
       accessibilityRole="button"
@@ -107,24 +125,29 @@ export function TvFocus({
       style={[
         {
           minHeight: 88,
-          borderRadius: 22,
           paddingHorizontal: 28,
           paddingVertical: 18,
           justifyContent: 'center',
-          opacity: focused ? 1 : 0.72,
-          transform: [{ scale: focused ? 1.08 : 1 }],
-          backgroundColor: focused ? theme.primary : theme.surface,
-          borderWidth: focused ? 6 : 2,
-          borderColor: focused ? theme.accent : theme.border,
-          shadowColor: theme.primary,
-          shadowOpacity: focused ? 0.85 : 0,
-          shadowRadius: focused ? 22 : 0,
-          shadowOffset: { width: 0, height: 0 },
+          opacity: 1,
+          transform: [{ scale: focused && !theme.reduceMotion ? 1.08 : 1 }],
+          ...(focused
+            ? {
+                backgroundColor: theme.primary,
+                borderWidth: 6,
+                borderColor: theme.accent,
+                borderTopColor: theme.accent,
+                shadowColor: theme.primary,
+                shadowOpacity: 0.85,
+                shadowRadius: 22,
+                shadowOffset: { width: 0, height: 0 },
+                elevation: 8,
+              }
+            : panel),
         },
         style,
       ]}
     >
-      {typeof children === 'function' ? children(focused) : children}
+      <TvOn.Provider value={focused}>{typeof children === 'function' ? children(focused) : children}</TvOn.Provider>
     </Pressable>
   );
 }

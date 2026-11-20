@@ -2,8 +2,10 @@ import React from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { router, usePathname } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useReduceTransparency } from '@/kit/a11y';
 import { useTheme } from '@/kit/theme';
 import { Ionicons, T } from '@/kit/ui';
+import { buttonChrome, glassEdge, glassPaint } from '@/kit/verre';
 import { useI18n } from '@/lib/i18n';
 import { useKeyFocus } from '@/lib/useKeyFocus';
 import { dueItems, store } from '@/state';
@@ -34,9 +36,13 @@ function SideLink({ href, label, icon, active, badge }: { href: string; label: s
         flexDirection: 'row',
         alignItems: 'center',
         gap: 10,
-        backgroundColor: active ? p.primary : state.pressed || Boolean((state as { hovered?: boolean }).hovered) || focused ? p.surface2 : 'transparent',
-        borderWidth: focused ? 2 : 0,
-        borderColor: p.accent,
+        ...(active
+          ? buttonChrome({ face: p.primary, pressed: state.pressed, dark: p.dark, ring: focused ? p.accent : null })
+          : {
+              backgroundColor: state.pressed || Boolean((state as { hovered?: boolean }).hovered) || focused ? p.surface2 : 'transparent',
+              borderWidth: focused ? 2 : 0,
+              borderColor: p.accent,
+            }),
       })}
     >
       <Ionicons name={icon} size={20} color={active ? p.primaryText : p.text} />
@@ -59,8 +65,10 @@ export function AppSidebar() {
   const path = usePathname();
   const { t } = useI18n();
   const due = store.useSelect((s) => dueItems(s).length);
+  const reduceT = useReduceTransparency();
+  const edge = glassEdge(p.dark);
   return (
-    <View style={[styles.side, { backgroundColor: p.surface, borderEndColor: p.border, paddingTop: insets.top + 16, paddingBottom: insets.bottom + 16 }]}>
+    <View style={[styles.side, { backgroundColor: glassPaint({ dark: p.dark, bg: p.bg, surface: p.surface, reduceTransparency: reduceT }), borderEndColor: reduceT ? p.border : edge.border, paddingTop: insets.top + 16, paddingBottom: insets.bottom + 16 }]}>
       <T v="h2" style={{ paddingHorizontal: 8 }}>
         ArabGram
       </T>
