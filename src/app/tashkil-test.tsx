@@ -6,11 +6,13 @@ import { AR, AudioButton, BackHeader, LicenseTag } from '@/components/common';
 import { BASE_LETTERS, MARKS, PHONETIC_TEST, RENDER_SAMPLES } from '@/data/tashkil';
 import { shuffle } from '@/lib/drill';
 import { useI18n } from '@/lib/i18n';
+import { announce } from '@/kit/a11y';
+import { haptic } from '@/kit/haptics';
 import { store } from '@/state';
 
 export default function TashkilTest() {
   const p = useTheme();
-  const { pick } = useI18n();
+  const { pick, t: tx } = useI18n();
   const gloss = store.useSelect((s) => s.settings.gloss);
   const best = store.useSelect((s) => s.tashkilBest);
   const [font, setFont] = useState<'naskh' | 'system'>('naskh');
@@ -32,7 +34,11 @@ export default function TashkilTest() {
   const choose = (o: string) => {
     if (picked) return;
     setPicked(o);
-    if (o === q.answer) setScore((n) => n + 1);
+    const ok = o === q.answer;
+    if (ok) setScore((n) => n + 1);
+    if (ok) haptic.success();
+    else haptic.warning();
+    announce(ok ? tx('correct') : `${tx('wrong')} — ${tx('answer')} : ${q.answer}`);
   };
   const next = () => {
     if (qi + 1 >= order.length) {
@@ -125,6 +131,7 @@ export default function TashkilTest() {
                   key={o}
                   accessibilityRole="button"
                   accessibilityLabel={o}
+                  accessibilityState={{ selected: isPick, disabled: !!picked }}
                   onPress={() => choose(o)}
                   style={{ minHeight: 52, borderRadius: p.radius, borderWidth: 2, alignItems: 'center', justifyContent: 'center', borderColor: picked && isAns ? p.success : isPick ? p.danger : p.border, backgroundColor: picked && isAns ? alpha(p.success, 0.12) : isPick ? alpha(p.danger, 0.12) : p.surface }}
                 >

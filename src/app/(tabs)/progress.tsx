@@ -3,6 +3,7 @@ import { View } from 'react-native';
 import { router } from 'expo-router';
 import { alpha, useTheme } from '@/kit/theme';
 import { Card, Header, Progress, Row, Screen, Section, Stat, T, Button } from '@/kit/ui';
+import { RecoveryBanner } from '@/components/RecoveryBanner';
 import { AR } from '@/components/common';
 import { UNITS } from '@/data/curriculum';
 import { PASSAGES } from '@/data/passages';
@@ -16,20 +17,23 @@ export default function ProgressTab() {
   const { t, pick, lang } = useI18n();
   const s = store.use();
   const cards = Object.values(s.srs);
-  const ok = cards.reduce((n, c) => n + c.ok, 0);
-  const ko = cards.reduce((n, c) => n + c.ko, 0);
+  const asNum = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
+  const ok = cards.reduce((n, c) => n + asNum(c?.ok), 0);
+  const ko = cards.reduce((n, c) => n + asNum(c?.ko), 0);
   const acc = ok + ko ? ok / (ok + ko) : 0;
   const counts = boxCounts(s);
   const mastered = counts[4] + counts[5];
-  const timed = s.pacer.sessions.filter((x) => !x.untimed);
-  const bestWpm = s.pacer.sessions.reduce((m, x) => Math.max(m, x.acc >= 0.8 ? x.wpm : 0), 0);
-  const bestScore = s.pacer.sessions.reduce((m, x) => Math.max(m, x.score), 0);
+  const sessions = Array.isArray(s.pacer?.sessions) ? s.pacer.sessions : [];
+  const timed = sessions.filter((x) => x && !x.untimed && typeof x.won === 'boolean');
+  const bestWpm = sessions.reduce((m, x) => Math.max(m, x && typeof x.acc === 'number' && x.acc >= 0.8 && typeof x.wpm === 'number' ? x.wpm : 0), 0);
+  const bestScore = sessions.reduce((m, x) => Math.max(m, x && typeof x.score === 'number' ? x.score : 0), 0);
   const wins = timed.filter((x) => x.won).length;
   const week = Array.from({ length: 7 }, (_, i) => addDaysIso(today(), i - 6));
-  const maxDay = Math.max(s.settings.dailyGoal, ...week.map((d) => s.days[d] ?? 0));
+  const maxDay = Math.max(asNum(s.settings.dailyGoal), ...week.map((d) => asNum(s.days[d])));
 
   return (
     <Screen header={<Header title={t('progress')} subtitle={pick({ fr: 'Tout est calculé et stocké sur cet appareil.', ar: 'كُلُّ شَيْءٍ مَحْفُوظٌ عَلَى جِهَازِكَ', en: 'Everything is computed and stored on this device.' })} />}>
+      <RecoveryBanner />
       <Row wrap>
         <Stat label="XP" value={String(s.xp)} color={p.primary} />
         <Stat label={t('streak')} value={`${streak(s)} ${pick({ fr: 'j', ar: 'ي', en: 'd' })}`} color={p.accent} />
@@ -41,7 +45,7 @@ export default function ProgressTab() {
         <Card>
           <View style={{ flexDirection: 'row', alignItems: 'flex-end', height: 110, gap: 8 }}>
             {week.map((d) => {
-              const v = s.days[d] ?? 0;
+              const v = asNum(s.days[d]);
               const reached = v >= s.settings.dailyGoal;
               return (
                 <View key={d} style={{ flex: 1, alignItems: 'center', gap: 4 }} accessible accessibilityLabel={`${d}: ${v} XP`}>
@@ -79,7 +83,7 @@ export default function ProgressTab() {
           <Stat label={pick({ fr: 'Meilleur score', ar: 'أَفْضَلُ نَتِيجَة', en: 'Best score' })} value={bestScore ? String(bestScore) : '—'} />
           <Stat label={pick({ fr: 'Victoires', ar: 'اِنْتِصَارَات', en: 'Wins' })} value={`${wins}/${timed.length}`} />
         </Row>
-        {s.pacer.sessions.slice(0, 6).map((x) => (
+        {sessions.slice(0, 6).map((x) => (
           <Row key={x.at} style={{ justifyContent: 'space-between', minHeight: 30 }}>
             <T v="small">{PASSAGES.find((q) => q.id === x.passage)?.title[s.settings.gloss] ?? x.passage}</T>
             <T v="small" muted>{x.untimed ? pick({ fr: 'libre', ar: 'حُرّ', en: 'free' }) : `${x.target}→`} {x.wpm} wpm · {Math.round(x.acc * 100)} %</T>
