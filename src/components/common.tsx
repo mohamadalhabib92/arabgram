@@ -5,6 +5,7 @@ import { useTheme, alpha } from '@/kit/theme';
 import { Header, IconButton, Ionicons, T, useToast } from '@/kit/ui';
 import { LICENSES, type LicenseId } from '@/data/licenses';
 import { formatDigits } from '@/kit/format';
+import { arabicRunStyle, isolateArabic } from '@/lib/arabicRun';
 import { arabicFamily } from '@/lib/fonts';
 import { TYPE } from '@/theme';
 import { hasArabicVoice, speakArabic } from '@/lib/speech';
@@ -34,7 +35,8 @@ export function AR({
   const arScale = store.useSelect((s) => s.settings.arScale);
   const fs = size * arScale * t.fontScale;
   const pad = Math.round(fs * TYPE.harakatPad);
-  const body = typeof children === 'string' || typeof children === 'number' ? formatDigits(children, t.digits) : children;
+  const raw = typeof children === 'string' || typeof children === 'number' ? formatDigits(children, t.digits) : children;
+  const body = typeof raw === 'string' ? isolateArabic(raw) : raw;
   return (
     <Text
       accessibilityLanguage="ar"
@@ -47,12 +49,11 @@ export function AR({
           lineHeight: Math.round(fs * TYPE.arabicLineHeight),
           paddingTop: pad,
           paddingBottom: pad,
-          writingDirection: 'rtl',
-          textAlign: center ? 'center' : 'right',
           color: color ?? t.text,
           fontWeight: weight,
         },
         style,
+        arabicRunStyle(center),
       ]}
     >
       {body}

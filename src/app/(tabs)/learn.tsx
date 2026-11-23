@@ -137,7 +137,7 @@ export default function Learn() {
                     <T v="caption" color={color}>{t('unit')} {u.id}</T>
                     {prog >= 1 ? <Ionicons name="checkmark-circle" size={18} color={p.success} /> : null}
                   </Row>
-                  <AR size={20} style={{ textAlign: lang === 'ar' ? 'right' : 'left' }}>{u.ar}</AR>
+                  <AR size={20}>{u.ar}</AR>
                   {lang !== 'ar' ? <T v="small" muted numberOfLines={1}>{u[gloss]}</T> : null}
                   <Progress value={prog} color={color} height={6} />
                   <T v="caption" muted>{Math.round(prog * nPlay)}/{nPlay} {t('lessons')}</T>
@@ -153,6 +153,7 @@ export default function Learn() {
       <Section title={pick({ fr: 'Outils', ar: 'أَدَوَات', en: 'Tools' })}>
         <Row wrap>
           <Button small kind="secondary" icon="text" title={t('tashkil')} onPress={() => router.push('/tashkil-test')} />
+          <Button small kind="secondary" icon="grid-outline" title={pick({ fr: 'Formes', ar: 'أَشْكَال', en: 'Shapes' })} onPress={() => router.push('/forms')} />
           <Button small kind="secondary" icon="document-text-outline" title={t('sources')} onPress={() => router.push('/sources')} />
           {showTutorScreen() ? <Button small kind="secondary" icon="sparkles-outline" title={t('tutor')} onPress={() => router.push('/tutor')} /> : null}
         </Row>

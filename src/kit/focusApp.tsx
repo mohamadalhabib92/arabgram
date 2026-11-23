@@ -45,7 +45,7 @@ export function useFocusText() {
 }
 
 /** Contenu accessible pendant une session (leçon, exercices, unité, sources ; Apprendre si le parcours est fini). */
-export const FOCUS_CONTENT = ['/lesson', '/drill', '/unit', '/sources', '/learn'] as const;
+export const FOCUS_CONTENT = ['/lesson', '/drill', '/unit', '/sources', '/learn', '/read-check', '/forms'] as const;
 
 /** Ouvre le contenu de la session (leçon, révision) PAR-DESSUS l’écran Focus, qui reste dessous. */
 export function openFocusTarget(target: FocusTarget | undefined) {
